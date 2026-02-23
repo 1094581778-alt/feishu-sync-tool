@@ -1431,6 +1431,7 @@ export default function FileUploadPage() {
             setTemplateSheetNames={setTemplateSheetNames}
             setHistoryTemplates={setHistoryTemplates}
             setTemplateSyncStatus={setTemplateSyncStatus}
+            setTableFields={setTableFields}
             handleImportTemplates={handleImportTemplates}
             handleExportTemplates={handleExportTemplates}
             handleBatchUpload={handleBatchUpload}
