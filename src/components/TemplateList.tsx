@@ -43,12 +43,14 @@ interface TemplateListProps {
   templateSheetNames: Record<string, string[]>;
   templateSyncStatus: Record<string, { success: boolean; message: string }>;
   tables: FeishuTable[];
+  tableFields: Record<string, any[]>;
   feishuAppId: string;
   feishuAppSecret: string;
   setTemplateFiles: React.Dispatch<React.SetStateAction<Record<string, File>>>;
   setTemplateSheetNames: React.Dispatch<React.SetStateAction<Record<string, string[]>>>;
   setHistoryTemplates: React.Dispatch<React.SetStateAction<HistoryTemplate[]>>;
   setTemplateSyncStatus: React.Dispatch<React.SetStateAction<Record<string, { success: boolean; message: string }>>>;
+  setTableFields: React.Dispatch<React.SetStateAction<Record<string, any[]>>>;
   handleImportTemplates: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleExportTemplates: () => void;
   handleBatchUpload: () => void;
@@ -74,12 +76,14 @@ export function TemplateList({
   templateSheetNames,
   templateSyncStatus,
   tables,
+  tableFields,
   feishuAppId,
   feishuAppSecret,
   setTemplateFiles,
   setTemplateSheetNames,
   setHistoryTemplates,
   setTemplateSyncStatus,
+  setTableFields,
   handleImportTemplates,
   handleExportTemplates,
   handleBatchUpload,
@@ -124,6 +128,47 @@ export function TemplateList({
     }
 
     try {
+      // 先获取飞书字段信息
+      const newTableFields: Record<string, any[]> = {};
+      for (const tableId of template.selectedTableIds) {
+        if (!tableFields[tableId]) {
+          try {
+            const requestBody: any = { 
+              token: template.spreadsheetToken, 
+              tableId 
+            };
+            if (feishuAppId && feishuAppSecret) {
+              requestBody.appId = feishuAppId;
+              requestBody.appSecret = feishuAppSecret;
+            }
+
+            const response = await fetch(`${window.location.origin}/api/feishu/fields`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(requestBody),
+            });
+            const data = await response.json();
+            if (data.success) {
+              newTableFields[tableId] = data.fields;
+              console.log(`✅ [历史模版] 已获取表 ${tableId} 字段:`, data.fields.length);
+            } else {
+              console.error(`❌ [历史模版] 获取表 ${tableId} 字段失败:`, data.error);
+            }
+          } catch (error) {
+            console.error(`❌ [历史模版] 获取表 ${tableId} 字段请求失败:`, error);
+          }
+        } else {
+          newTableFields[tableId] = tableFields[tableId];
+        }
+      }
+
+      // 更新 tableFields
+      if (Object.keys(newTableFields).length > 0) {
+        setTableFields(prev => ({ ...prev, ...newTableFields }));
+      }
+
       const XLSX = await import('xlsx');
       const buffer = await file.arrayBuffer();
       const workbook = XLSX.read(buffer, { type: 'array' });
@@ -153,8 +198,7 @@ export function TemplateList({
 
           if (jsonData.length > 0) {
             const excelColumns = Object.keys(jsonData[0]);
-            const feishuFields =
-              template.tableFields?.[tableId] || [];
+            const feishuFields = newTableFields[tableId] || tableFields[tableId] || [];
             const feishuFieldNames = feishuFields.map(
               (f: any) => f.field_name || f.name
             );
@@ -198,7 +242,7 @@ export function TemplateList({
       // 更新模版的字段匹配结果
       const updatedTemplates = historyTemplates.map((temp) =>
         temp.id === template.id
-          ? { ...temp, fieldMatchResults: newFieldMatches }
+          ? { ...temp, fieldMatchResults: newFieldMatches, tableFields: newTableFields }
           : temp
       );
       setHistoryTemplates(updatedTemplates);

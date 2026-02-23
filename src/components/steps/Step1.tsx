@@ -40,6 +40,7 @@ interface Step1Props {
   loadingTables: boolean;
   parsedConfig: { spreadsheetToken: string; sheetId?: string } | null;
   tables: any[];
+  tableFields: Record<string, any[]>;
   error: string;
   debugInfo: DebugInfo;
   inputMode: 'file' | 'paste';
@@ -65,6 +66,7 @@ interface Step1Props {
   setTemplateSheetNames: React.Dispatch<React.SetStateAction<Record<string, string[]>>>;
   setHistoryTemplates: React.Dispatch<React.SetStateAction<any[]>>;
   setTemplateSyncStatus: React.Dispatch<React.SetStateAction<Record<string, { success: boolean; message: string }>>>;
+  setTableFields: React.Dispatch<React.SetStateAction<Record<string, any[]>>>;
   handleImportTemplates: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleExportTemplates: () => void;
   handleBatchUpload: () => void;
@@ -89,6 +91,7 @@ export function Step1({
   loadingTables,
   parsedConfig,
   tables,
+  tableFields,
   error,
   debugInfo,
   inputMode,
@@ -114,6 +117,7 @@ export function Step1({
   setTemplateSheetNames,
   setHistoryTemplates,
   setTemplateSyncStatus,
+  setTableFields,
   handleImportTemplates,
   handleExportTemplates,
   handleBatchUpload,
@@ -236,12 +240,14 @@ export function Step1({
                 templateSheetNames={templateSheetNames}
                 templateSyncStatus={templateSyncStatus}
                 tables={tables}
+                tableFields={tableFields}
                 feishuAppId={feishuAppId}
                 feishuAppSecret={feishuAppSecret}
                 setTemplateFiles={setTemplateFiles}
                 setTemplateSheetNames={setTemplateSheetNames}
                 setHistoryTemplates={setHistoryTemplates}
                 setTemplateSyncStatus={setTemplateSyncStatus}
+                setTableFields={setTableFields}
                 handleImportTemplates={handleImportTemplates}
                 handleExportTemplates={handleExportTemplates}
                 handleBatchUpload={handleBatchUpload}

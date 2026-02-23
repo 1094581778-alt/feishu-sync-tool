@@ -1405,6 +1405,7 @@ export default function FileUploadPage() {
             loadingTables={loadingTables}
             parsedConfig={parsedConfig}
             tables={tables}
+            tableFields={tableFields}
             error={error}
             debugInfo={debugInfo}
             inputMode={inputMode}
