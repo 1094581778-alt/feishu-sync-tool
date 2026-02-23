@@ -105,10 +105,30 @@ export function TemplateList({
     const file = templateFiles[template.id];
     const sheetNames = templateSheetNames[template.id] || [];
 
-    if (file && template.tableToSheetMapping) {
+    console.log(`🔄 [历史模版] 开始刷新模版 "${template.name}"`);
+    console.log(`📁 文件状态:`, file ? `${file.name} (已加载)` : '未上传');
+    console.log(`📊 Sheet映射:`, template.tableToSheetMapping);
+
+    if (!file) {
+      console.error(`❌ [历史模版] 模版 "${template.name}" 没有上传文件`);
+      setShowSaveSuccess('❌ 请先上传Excel文件');
+      setTimeout(() => setShowSaveSuccess(null), 3000);
+      return;
+    }
+
+    if (!template.tableToSheetMapping || Object.keys(template.tableToSheetMapping).length === 0) {
+      console.error(`❌ [历史模版] 模版 "${template.name}" 没有配置Sheet映射`);
+      setShowSaveSuccess('❌ 请先配置Sheet映射');
+      setTimeout(() => setShowSaveSuccess(null), 3000);
+      return;
+    }
+
+    try {
       const XLSX = await import('xlsx');
       const buffer = await file.arrayBuffer();
       const workbook = XLSX.read(buffer, { type: 'array' });
+
+      console.log(`📋 [历史模版] 读取到 ${workbook.SheetNames.length} 个Sheet:`, workbook.SheetNames);
 
       // 更新 Sheet 名称
       setTemplateSheetNames((prev) => ({
@@ -121,11 +141,15 @@ export function TemplateList({
 
       for (const tableId of template.selectedTableIds) {
         const sheetName = template.tableToSheetMapping[tableId];
+        console.log(`🔍 [历史模版] 检查表 ${tableId} -> Sheet: ${sheetName}`);
+
         if (sheetName && workbook.Sheets[sheetName]) {
           const worksheet = workbook.Sheets[sheetName];
           const jsonData = XLSX.utils.sheet_to_json<
             Record<string, any>
           >(worksheet, { raw: false });
+
+          console.log(`📊 [历史模版] Sheet "${sheetName}" 有 ${jsonData.length} 行数据`);
 
           if (jsonData.length > 0) {
             const excelColumns = Object.keys(jsonData[0]);
@@ -134,6 +158,9 @@ export function TemplateList({
             const feishuFieldNames = feishuFields.map(
               (f: any) => f.field_name || f.name
             );
+
+            console.log(`📝 [历史模版] Excel列:`, excelColumns);
+            console.log(`📝 [历史模版] 飞书字段:`, feishuFieldNames);
 
             // 模糊匹配
             const normalizeFieldName = (name: string) =>
@@ -161,7 +188,10 @@ export function TemplateList({
               });
 
             newFieldMatches[tableId] = results;
+            console.log(`✅ [历史模版] 表 ${tableId} 匹配结果: ${results.filter(r => r.matched).length}/${results.length}`);
           }
+        } else {
+          console.warn(`⚠️ [历史模版] Sheet "${sheetName}" 不存在`);
         }
       }
 
@@ -180,6 +210,12 @@ export function TemplateList({
       console.log(
         `✅ [历史模版] 已刷新模版 "${template.name}" 的字段匹配`
       );
+      setShowSaveSuccess('✅ 字段匹配已刷新');
+      setTimeout(() => setShowSaveSuccess(null), 3000);
+    } catch (error) {
+      console.error(`❌ [历史模版] 刷新失败:`, error);
+      setShowSaveSuccess('❌ 刷新失败，请检查文件');
+      setTimeout(() => setShowSaveSuccess(null), 3000);
     }
   };
 
