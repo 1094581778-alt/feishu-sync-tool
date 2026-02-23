@@ -49,9 +49,9 @@ function convertValueByFieldType(value: any, fieldType: number): any {
       return strValue;
 
     case FEISHU_FIELD_TYPES.NUMBER:
-      // 数字：转换为浮点数
+      // 数字：转换为浮点数并保留两位小数
       const num = parseFloat(strValue);
-      return isNaN(num) ? 0 : num;
+      return isNaN(num) ? 0 : parseFloat(num.toFixed(2));
 
     case FEISHU_FIELD_TYPES.SINGLE_SELECT:
       // 单选：直接返回选项值（字符串）

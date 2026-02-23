@@ -107,6 +107,35 @@ export function TemplateList({
   const [autoAddFields, setAutoAddFields] = useState<Record<string, boolean>>({});
   const [addingFields, setAddingFields] = useState<Record<string, boolean>>({});
 
+  // 自动检测字段类型
+  const detectFieldType = (excelField: string, jsonData: Record<string, any>[]) => {
+    // 检查是否为数字类型
+    const values = jsonData.map(row => row[excelField]);
+    const allNumbers = values.every(value => {
+      if (value === null || value === undefined) return true;
+      return !isNaN(Number(value));
+    });
+    
+    if (allNumbers) {
+      return 'number';
+    }
+    
+    // 检查是否为日期类型
+    const dateFormats = [
+      /^\d{4}-\d{2}-\d{2}$/,
+      /^\d{2}\/\d{2}\/\d{4}$/,
+      /^\d{4}\/\d{2}\/\d{2}$/
+    ];
+    const allDates = values.every(value => {
+      if (value === null || value === undefined) return true;
+      return dateFormats.some(format => format.test(value.toString()));
+    });
+    
+    if (allDates) return 'date';
+    
+    return 'text';
+  };
+
   // 添加未匹配字段到飞书表格
   const addUnmatchedFieldsToFeishu = async (template: HistoryTemplate, tableId: string, skipRefresh = false) => {
     const matches = template.fieldMatchResults?.[tableId] || [];
@@ -127,13 +156,40 @@ export function TemplateList({
       let failedFields: string[] = [];
       let skippedFields: string[] = [];
 
+      // 读取Excel文件获取数据以检测字段类型
+      const file = templateFiles[template.id];
+      let jsonData: Record<string, any>[] = [];
+      if (file) {
+        const XLSX = await import('xlsx');
+        const buffer = await file.arrayBuffer();
+        const workbook = XLSX.read(buffer, { type: 'array' });
+        const sheetName = template.tableToSheetMapping[tableId];
+        
+        if (sheetName) {
+          // 大小写不敏感查找工作表
+          const actualSheetName = workbook.SheetNames.find(
+            (name) => name.toLowerCase() === sheetName.toLowerCase()
+          ) || sheetName;
+          
+          if (workbook.Sheets[actualSheetName]) {
+            jsonData = XLSX.utils.sheet_to_json<Record<string, any>>(
+              workbook.Sheets[actualSheetName], 
+              { raw: false }
+            );
+          }
+        }
+      }
+
       for (const field of unmatchedFields) {
         try {
+          // 自动检测字段类型
+          const fieldType = detectFieldType(field.excelField, jsonData);
+          
           const requestBody: any = {
             token: template.spreadsheetToken,
             tableId,
             fieldName: field.excelField,
-            fieldType: 'text'
+            fieldType: fieldType
           };
 
           if (feishuAppId && feishuAppSecret) {
@@ -152,7 +208,7 @@ export function TemplateList({
           const data = await response.json();
           if (data.success) {
             successCount++;
-            console.log(`✅ [历史模版] 已添加字段 "${field.excelField}" 到飞书表格`);
+            console.log(`✅ [历史模版] 已添加字段 "${field.excelField}" (类型: ${fieldType}) 到飞书表格`);
           } else {
             // 检查是否是字段已存在的错误
             if (data.error?.includes('已存在') || response.status === 409) {
@@ -228,39 +284,35 @@ export function TemplateList({
     }
 
     try {
-      // 先获取飞书字段信息
+      // 重新获取飞书字段信息（不使用缓存）
       const newTableFields: Record<string, any[]> = {};
       for (const tableId of template.selectedTableIds) {
-        if (!tableFields[tableId]) {
-          try {
-            const requestBody: any = { 
-              token: template.spreadsheetToken, 
-              tableId 
-            };
-            if (feishuAppId && feishuAppSecret) {
-              requestBody.appId = feishuAppId;
-              requestBody.appSecret = feishuAppSecret;
-            }
-
-            const response = await fetch(`${window.location.origin}/api/feishu/fields`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify(requestBody),
-            });
-            const data = await response.json();
-            if (data.success) {
-              newTableFields[tableId] = data.fields;
-              console.log(`✅ [历史模版] 已获取表 ${tableId} 字段:`, data.fields.length);
-            } else {
-              console.error(`❌ [历史模版] 获取表 ${tableId} 字段失败:`, data.error);
-            }
-          } catch (error) {
-            console.error(`❌ [历史模版] 获取表 ${tableId} 字段请求失败:`, error);
+        try {
+          const requestBody: any = { 
+            token: template.spreadsheetToken, 
+            tableId 
+          };
+          if (feishuAppId && feishuAppSecret) {
+            requestBody.appId = feishuAppId;
+            requestBody.appSecret = feishuAppSecret;
           }
-        } else {
-          newTableFields[tableId] = tableFields[tableId];
+
+          const response = await fetch(`${window.location.origin}/api/feishu/fields`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(requestBody),
+          });
+          const data = await response.json();
+          if (data.success) {
+            newTableFields[tableId] = data.fields;
+            console.log(`✅ [历史模版] 已获取表 ${tableId} 字段:`, data.fields.length);
+          } else {
+            console.error(`❌ [历史模版] 获取表 ${tableId} 字段失败:`, data.error);
+          }
+        } catch (error) {
+          console.error(`❌ [历史模版] 获取表 ${tableId} 字段请求失败:`, error);
         }
       }
 
@@ -306,7 +358,7 @@ export function TemplateList({
 
           if (jsonData.length > 0) {
             const excelColumns = Object.keys(jsonData[0]);
-            const feishuFields = newTableFields[tableId] || tableFields[tableId] || [];
+            const feishuFields = newTableFields[tableId] || [];
             const feishuFieldNames = feishuFields.map(
               (f: any) => f.field_name || f.name
             );
@@ -381,11 +433,14 @@ export function TemplateList({
 
             for (const field of unmatchedFields) {
               try {
+                // 自动检测字段类型
+                const fieldType = detectFieldType(field.excelField, jsonData);
+                
                 const requestBody: any = {
                   token: template.spreadsheetToken,
                   tableId,
                   fieldName: field.excelField,
-                  fieldType: 'text'
+                  fieldType: fieldType
                 };
 
                 if (feishuAppId && feishuAppSecret) {
@@ -472,7 +527,7 @@ export function TemplateList({
 
                 if (jsonData.length > 0) {
                   const excelColumns = Object.keys(jsonData[0]);
-                  const feishuFields = refreshedTableFields[tid] || newTableFields[tid] || tableFields[tid] || [];
+                  const feishuFields = refreshedTableFields[tid] || newTableFields[tid] || [];
                   const feishuFieldNames = feishuFields.map((f: any) => f.field_name || f.name);
 
                   const normalizeFieldName = (name: string) =>

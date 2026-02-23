@@ -160,6 +160,19 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // 构建字段创建请求体
+    const requestBody: any = {
+      field_name: fieldName,
+      type: convertFieldType(fieldType),
+    };
+
+    // 为数字字段添加格式设置，保留2位小数
+    if (fieldType === 'number') {
+      requestBody.property = {
+        formatter: '0.00', // 保留2位小数
+      };
+    }
+
     // 创建新字段
     const response = await fetch(
       `https://open.feishu.cn/open-apis/bitable/v1/apps/${spreadsheetToken}/tables/${tableId}/fields`,
@@ -169,10 +182,7 @@ export async function POST(request: NextRequest) {
           'Authorization': `Bearer ${accessToken}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          field_name: fieldName,
-          type: convertFieldType(fieldType),
-        }),
+        body: JSON.stringify(requestBody),
       }
     );
 
