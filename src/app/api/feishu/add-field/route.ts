@@ -23,6 +23,48 @@ async function getFeishuAccessToken(appId: string, appSecret: string): Promise<s
 }
 
 /**
+ * 飞书字段类型映射
+ */
+const FEISHU_FIELD_TYPES = {
+  text: 1,           // 文本
+  number: 2,         // 数字
+  singleSelect: 3,    // 单选
+  multiSelect: 4,     // 多选
+  date: 5,           // 日期
+  checkbox: 7,        // 复选框
+  url: 13,           // 超链接
+  email: 14,          // 邮箱
+  phone: 15,         // 电话号码
+  currency: 16,       // 货币
+  percent: 17,        // 百分比
+  rating: 18,        // 评分
+  datetime: 19,       // 日期时间
+  user: 20,          // 人员
+  group: 21,          // 群组
+  attachment: 22,      // 附件
+  lookup: 23,         // 查找引用
+  formula: 24,        // 公式
+  relation: 25,       // 双向关联
+  oneWayLink: 26,     // 单向关联
+  location: 27,       // 地理位置
+  createdTime: 28,    // 创建时间
+  modifiedTime: 29,    // 修改时间
+  createdUser: 30,     // 创建人
+  modifiedUser: 31,     // 修改人
+  autoNumber: 32,     // 自动编号
+  progress: 33,       // 进度
+  department: 34,     // 部门
+  textArea: 15,        // 多行文本
+};
+
+/**
+ * 将字段类型转换为飞书 API 格式
+ */
+function convertFieldType(fieldType: string): number {
+  return FEISHU_FIELD_TYPES[fieldType as keyof typeof FEISHU_FIELD_TYPES] || 1; // 默认为文本类型
+}
+
+/**
  * 验证字段名称是否符合飞书规范
  */
 function validateFieldName(fieldName: string): { valid: boolean; error?: string } {
@@ -129,7 +171,7 @@ export async function POST(request: NextRequest) {
         },
         body: JSON.stringify({
           field_name: fieldName,
-          type: fieldType,
+          type: convertFieldType(fieldType),
         }),
       }
     );
