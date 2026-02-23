@@ -23,6 +23,35 @@ async function getFeishuAccessToken(appId: string, appSecret: string): Promise<s
 }
 
 /**
+ * 验证字段名称是否符合飞书规范
+ */
+function validateFieldName(fieldName: string): { valid: boolean; error?: string } {
+  if (!fieldName || fieldName.trim().length === 0) {
+    return { valid: false, error: '字段名称不能为空' };
+  }
+
+  const trimmedName = fieldName.trim();
+
+  // 飞书字段名称限制：1-64个字符
+  if (trimmedName.length > 64) {
+    return { valid: false, error: '字段名称不能超过64个字符' };
+  }
+
+  // 检查是否包含不允许的字符
+  const invalidChars = /[<>:"\/\\|?*\x00-\x1F]/;
+  if (invalidChars.test(trimmedName)) {
+    return { valid: false, error: '字段名称包含非法字符' };
+  }
+
+  // 检查是否以空格开头或结尾
+  if (trimmedName !== fieldName) {
+    return { valid: false, error: '字段名称不能以空格开头或结尾' };
+  }
+
+  return { valid: true };
+}
+
+/**
  * POST 添加新字段到飞书工作表
  */
 export async function POST(request: NextRequest) {
@@ -49,8 +78,45 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // 验证字段名称
+    const validation = validateFieldName(fieldName);
+    if (!validation.valid) {
+      return NextResponse.json(
+        { error: `字段名称验证失败: ${validation.error}` },
+        { status: 400 }
+      );
+    }
+
     // 获取访问令牌
     const accessToken = await getFeishuAccessToken(appId, appSecret);
+
+    // 先检查字段是否已存在
+    const checkResponse = await fetch(
+      `https://open.feishu.cn/open-apis/bitable/v1/apps/${spreadsheetToken}/tables/${tableId}/fields`,
+      {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    const checkData = await checkResponse.json();
+
+    if (checkData.code === 0) {
+      const existingFields = checkData.data.items || [];
+      const fieldExists = existingFields.some((field: any) => 
+        field.field_name === fieldName || field.field_name.toLowerCase() === fieldName.toLowerCase()
+      );
+
+      if (fieldExists) {
+        return NextResponse.json(
+          { error: `字段 "${fieldName}" 已存在` },
+          { status: 409 }
+        );
+      }
+    }
 
     // 创建新字段
     const response = await fetch(
@@ -72,7 +138,11 @@ export async function POST(request: NextRequest) {
 
     if (data.code !== 0) {
       return NextResponse.json(
-        { error: `添加字段失败: ${data.msg}`, code: data.code },
+        { 
+          error: `添加字段失败: ${data.msg}`, 
+          code: data.code,
+          details: data 
+        },
         { status: 500 }
       );
     }

@@ -125,6 +125,7 @@ export function TemplateList({
     try {
       let successCount = 0;
       let failedFields: string[] = [];
+      let skippedFields: string[] = [];
 
       for (const field of unmatchedFields) {
         try {
@@ -153,8 +154,14 @@ export function TemplateList({
             successCount++;
             console.log(`✅ [历史模版] 已添加字段 "${field.excelField}" 到飞书表格`);
           } else {
-            failedFields.push(field.excelField);
-            console.error(`❌ [历史模版] 添加字段 "${field.excelField}" 失败:`, data.error);
+            // 检查是否是字段已存在的错误
+            if (data.error?.includes('已存在') || response.status === 409) {
+              console.log(`⚠️ [历史模版] 字段 "${field.excelField}" 已存在，跳过`);
+              skippedFields.push(field.excelField);
+            } else {
+              failedFields.push(field.excelField);
+              console.error(`❌ [历史模版] 添加字段 "${field.excelField}" 失败:`, data.error);
+            }
           }
         } catch (error) {
           failedFields.push(field.excelField);
@@ -168,11 +175,22 @@ export function TemplateList({
       }
 
       if (!skipRefresh) {
-        if (failedFields.length > 0) {
-          setShowSaveSuccess(`⚠️ 成功添加 ${successCount} 个字段，失败 ${failedFields.length} 个`);
-        } else {
-          setShowSaveSuccess(`✅ 成功添加 ${successCount} 个字段到飞书表格`);
+        // 构建结果消息
+        let message = '';
+        if (successCount > 0) {
+          message += `✅ 成功添加 ${successCount} 个字段`;
         }
+        if (skippedFields.length > 0) {
+          message += (message ? '，' : '') + `⚠️ 跳过 ${skippedFields.length} 个已存在字段`;
+        }
+        if (failedFields.length > 0) {
+          message += (message ? '，' : '') + `❌ 失败 ${failedFields.length} 个字段`;
+        }
+        if (!message) {
+          message = '✅ 没有需要添加的字段';
+        }
+
+        setShowSaveSuccess(message);
         setTimeout(() => setShowSaveSuccess(null), 3000);
       }
     } catch (error) {
@@ -359,6 +377,7 @@ export function TemplateList({
           try {
             let successCount = 0;
             let failedFields: string[] = [];
+            let skippedFields: string[] = [];
 
             for (const field of unmatchedFields) {
               try {
@@ -387,8 +406,14 @@ export function TemplateList({
                   successCount++;
                   console.log(`✅ [历史模版] 已添加字段 "${field.excelField}" 到飞书表格`);
                 } else {
-                  failedFields.push(field.excelField);
-                  console.error(`❌ [历史模版] 添加字段 "${field.excelField}" 失败:`, data.error);
+                  // 检查是否是字段已存在的错误
+                  if (data.error?.includes('已存在') || response.status === 409) {
+                    console.log(`⚠️ [历史模版] 字段 "${field.excelField}" 已存在，跳过`);
+                    skippedFields.push(field.excelField);
+                  } else {
+                    failedFields.push(field.excelField);
+                    console.error(`❌ [历史模版] 添加字段 "${field.excelField}" 失败:`, data.error);
+                  }
                 }
               } catch (error) {
                 failedFields.push(field.excelField);
@@ -482,11 +507,22 @@ export function TemplateList({
             setHistoryTemplates(finalTemplates);
             localStorage.setItem('feishuHistoryTemplates', JSON.stringify(finalTemplates));
 
-            if (failedFields.length > 0) {
-              setShowSaveSuccess(`⚠️ 成功添加 ${successCount} 个字段，失败 ${failedFields.length} 个`);
-            } else {
-              setShowSaveSuccess(`✅ 成功添加 ${successCount} 个字段到飞书表格`);
+            // 构建结果消息
+            let message = '';
+            if (successCount > 0) {
+              message += `✅ 成功添加 ${successCount} 个字段`;
             }
+            if (skippedFields.length > 0) {
+              message += (message ? '，' : '') + `⚠️ 跳过 ${skippedFields.length} 个已存在字段`;
+            }
+            if (failedFields.length > 0) {
+              message += (message ? '，' : '') + `❌ 失败 ${failedFields.length} 个字段`;
+            }
+            if (!message) {
+              message = '✅ 没有需要添加的字段';
+            }
+
+            setShowSaveSuccess(message);
           } catch (error) {
             console.error(`❌ [历史模版] 自动添加字段失败:`, error);
             setShowSaveSuccess('❌ 自动添加字段失败，请检查网络连接');
