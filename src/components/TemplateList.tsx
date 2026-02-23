@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
 import { FilePathSelector } from '@/components/FilePathSelector';
 import {
   DropdownMenu,
@@ -103,6 +104,87 @@ export function TemplateList({
   batchUploadProgress,
 }: TemplateListProps) {
   const [showClearAllDialog, setShowClearAllDialog] = useState(false);
+  const [autoAddFields, setAutoAddFields] = useState<Record<string, boolean>>({});
+  const [addingFields, setAddingFields] = useState<Record<string, boolean>>({});
+
+  // 添加未匹配字段到飞书表格
+  const addUnmatchedFieldsToFeishu = async (template: HistoryTemplate, tableId: string, skipRefresh = false) => {
+    const matches = template.fieldMatchResults?.[tableId] || [];
+    const unmatchedFields = matches.filter((m: any) => !m.matched);
+
+    if (unmatchedFields.length === 0) {
+      if (!skipRefresh) {
+        setShowSaveSuccess('✅ 没有未匹配字段需要添加');
+        setTimeout(() => setShowSaveSuccess(null), 3000);
+      }
+      return;
+    }
+
+    setAddingFields(prev => ({ ...prev, [`${template.id}-${tableId}`]: true }));
+
+    try {
+      let successCount = 0;
+      let failedFields: string[] = [];
+
+      for (const field of unmatchedFields) {
+        try {
+          const requestBody: any = {
+            token: template.spreadsheetToken,
+            tableId,
+            fieldName: field.excelField,
+            fieldType: 'text'
+          };
+
+          if (feishuAppId && feishuAppSecret) {
+            requestBody.appId = feishuAppId;
+            requestBody.appSecret = feishuAppSecret;
+          }
+
+          const response = await fetch(`${window.location.origin}/api/feishu/add-field`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(requestBody),
+          });
+
+          const data = await response.json();
+          if (data.success) {
+            successCount++;
+            console.log(`✅ [历史模版] 已添加字段 "${field.excelField}" 到飞书表格`);
+          } else {
+            failedFields.push(field.excelField);
+            console.error(`❌ [历史模版] 添加字段 "${field.excelField}" 失败:`, data.error);
+          }
+        } catch (error) {
+          failedFields.push(field.excelField);
+          console.error(`❌ [历史模版] 添加字段 "${field.excelField}" 请求失败:`, error);
+        }
+      }
+
+      // 如果不是从 refreshFieldMatches 调用的，则刷新字段信息
+      if (!skipRefresh) {
+        await refreshFieldMatches(template);
+      }
+
+      if (!skipRefresh) {
+        if (failedFields.length > 0) {
+          setShowSaveSuccess(`⚠️ 成功添加 ${successCount} 个字段，失败 ${failedFields.length} 个`);
+        } else {
+          setShowSaveSuccess(`✅ 成功添加 ${successCount} 个字段到飞书表格`);
+        }
+        setTimeout(() => setShowSaveSuccess(null), 3000);
+      }
+    } catch (error) {
+      console.error(`❌ [历史模版] 添加字段失败:`, error);
+      if (!skipRefresh) {
+        setShowSaveSuccess('❌ 添加字段失败，请检查网络连接');
+        setTimeout(() => setShowSaveSuccess(null), 3000);
+      }
+    } finally {
+      setAddingFields(prev => ({ ...prev, [`${template.id}-${tableId}`]: false }));
+    }
+  };
 
   // 刷新字段匹配的函数
   const refreshFieldMatches = async (template: HistoryTemplate) => {
@@ -262,6 +344,158 @@ export function TemplateList({
       console.log(
         `✅ [历史模版] 已刷新模版 "${template.name}" 的字段匹配`
       );
+
+      // 检查是否需要自动添加未匹配字段
+      for (const tableId of template.selectedTableIds) {
+        const matches = newFieldMatches[tableId] || [];
+        const unmatchedFields = matches.filter((m: any) => !m.matched);
+        const autoAddEnabled = autoAddFields[`${template.id}-${tableId}`];
+
+        if (autoAddEnabled && unmatchedFields.length > 0) {
+          console.log(`🔄 [历史模版] 自动添加 ${unmatchedFields.length} 个未匹配字段到表 ${tableId}`);
+          
+          setAddingFields(prev => ({ ...prev, [`${template.id}-${tableId}`]: true }));
+          
+          try {
+            let successCount = 0;
+            let failedFields: string[] = [];
+
+            for (const field of unmatchedFields) {
+              try {
+                const requestBody: any = {
+                  token: template.spreadsheetToken,
+                  tableId,
+                  fieldName: field.excelField,
+                  fieldType: 'text'
+                };
+
+                if (feishuAppId && feishuAppSecret) {
+                  requestBody.appId = feishuAppId;
+                  requestBody.appSecret = feishuAppSecret;
+                }
+
+                const response = await fetch(`${window.location.origin}/api/feishu/add-field`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify(requestBody),
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                  successCount++;
+                  console.log(`✅ [历史模版] 已添加字段 "${field.excelField}" 到飞书表格`);
+                } else {
+                  failedFields.push(field.excelField);
+                  console.error(`❌ [历史模版] 添加字段 "${field.excelField}" 失败:`, data.error);
+                }
+              } catch (error) {
+                failedFields.push(field.excelField);
+                console.error(`❌ [历史模版] 添加字段 "${field.excelField}" 请求失败:`, error);
+              }
+            }
+
+            // 手动刷新字段信息
+            const refreshedTableFields: Record<string, any[]> = {};
+            for (const tid of template.selectedTableIds) {
+              try {
+                const requestBody: any = { 
+                  token: template.spreadsheetToken, 
+                  tableId: tid 
+                };
+                if (feishuAppId && feishuAppSecret) {
+                  requestBody.appId = feishuAppId;
+                  requestBody.appSecret = feishuAppSecret;
+                }
+
+                const response = await fetch(`${window.location.origin}/api/feishu/fields`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify(requestBody),
+                });
+                const data = await response.json();
+                if (data.success) {
+                  refreshedTableFields[tid] = data.fields;
+                }
+              } catch (error) {
+                console.error(`❌ [历史模版] 获取表 ${tid} 字段失败:`, error);
+              }
+            }
+
+            // 更新 tableFields
+            if (Object.keys(refreshedTableFields).length > 0) {
+              setTableFields(prev => ({ ...prev, ...refreshedTableFields }));
+            }
+
+            // 重新计算字段匹配
+            const refreshedFieldMatches: Record<string, FieldMatchResult[]> = {};
+            for (const tid of template.selectedTableIds) {
+              const sheetName = template.tableToSheetMapping[tid];
+              let actualSheetName = sheetName;
+              if (sheetName) {
+                actualSheetName = workbook.SheetNames.find(
+                  (name) => name.toLowerCase() === sheetName.toLowerCase()
+                ) || sheetName;
+              }
+
+              if (sheetName && workbook.Sheets[actualSheetName]) {
+                const worksheet = workbook.Sheets[actualSheetName];
+                const jsonData = XLSX.utils.sheet_to_json<Record<string, any>>(worksheet, { raw: false });
+
+                if (jsonData.length > 0) {
+                  const excelColumns = Object.keys(jsonData[0]);
+                  const feishuFields = refreshedTableFields[tid] || newTableFields[tid] || tableFields[tid] || [];
+                  const feishuFieldNames = feishuFields.map((f: any) => f.field_name || f.name);
+
+                  const normalizeFieldName = (name: string) =>
+                    name.trim().toLowerCase().replace(/\s+/g, '');
+
+                  const results: FieldMatchResult[] = excelColumns.map((excelField) => {
+                    let feishuField = feishuFieldNames.find((fn: string) => fn === excelField);
+                    if (!feishuField) {
+                      const normalizedExcelField = normalizeFieldName(excelField);
+                      feishuField = feishuFieldNames.find((fn: string) =>
+                        normalizeFieldName(fn) === normalizedExcelField
+                      );
+                    }
+                    return {
+                      excelField,
+                      feishuField: feishuField || null,
+                      matched: !!feishuField,
+                    };
+                  });
+
+                  refreshedFieldMatches[tid] = results;
+                }
+              }
+            }
+
+            // 更新模版的字段匹配结果
+            const finalTemplates = historyTemplates.map((temp) =>
+              temp.id === template.id
+                ? { ...temp, fieldMatchResults: refreshedFieldMatches, tableFields: refreshedTableFields }
+                : temp
+            );
+            setHistoryTemplates(finalTemplates);
+            localStorage.setItem('feishuHistoryTemplates', JSON.stringify(finalTemplates));
+
+            if (failedFields.length > 0) {
+              setShowSaveSuccess(`⚠️ 成功添加 ${successCount} 个字段，失败 ${failedFields.length} 个`);
+            } else {
+              setShowSaveSuccess(`✅ 成功添加 ${successCount} 个字段到飞书表格`);
+            }
+          } catch (error) {
+            console.error(`❌ [历史模版] 自动添加字段失败:`, error);
+            setShowSaveSuccess('❌ 自动添加字段失败，请检查网络连接');
+          } finally {
+            setAddingFields(prev => ({ ...prev, [`${template.id}-${tableId}`]: false }));
+          }
+        }
+      }
+
       setShowSaveSuccess('✅ 字段匹配已刷新');
       setTimeout(() => setShowSaveSuccess(null), 3000);
     } catch (error) {
@@ -1100,7 +1334,38 @@ export function TemplateList({
                                       </div>
                                     </div>
                                     <div>
-                                      <p className="text-xs font-medium text-red-700 dark:text-red-300 mb-1">❌ Excel 未匹配字段：</p>
+                                      <div className="flex items-center justify-between mb-1">
+                                        <p className="text-xs font-medium text-red-700 dark:text-red-300">❌ Excel 未匹配字段：</p>
+                                        <div className="flex items-center gap-2">
+                                          <div className="flex items-center gap-1">
+                                            <Switch
+                                              checked={autoAddFields[`${template.id}-${tableId}`] || false}
+                                              onCheckedChange={(checked) => 
+                                                setAutoAddFields(prev => ({ ...prev, [`${template.id}-${tableId}`]: checked }))
+                                              }
+                                              className="h-4 w-7"
+                                            />
+                                            <span className="text-xs text-gray-600 dark:text-gray-400">自动添加</span>
+                                          </div>
+                                          <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => addUnmatchedFieldsToFeishu(template, tableId)}
+                                            disabled={addingFields[`${template.id}-${tableId}`] || unmatchedCount === 0}
+                                            className="h-6 px-2 text-xs text-blue-700 hover:text-blue-900 dark:text-blue-300 dark:hover:text-blue-100"
+                                          >
+                                            {addingFields[`${template.id}-${tableId}`] ? (
+                                              <>
+                                                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                                添加中...
+                                              </>
+                                            ) : (
+                                              '➕ 添加到飞书'
+                                            )}
+                                          </Button>
+                                        </div>
+                                      </div>
                                       <div className="flex flex-wrap gap-1">
                                         {matches.filter((m: any) => !m.matched).map((m: any, idx: number) => (
                                           <span key={idx} className="text-xs px-2 py-0.5 bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200 rounded">
