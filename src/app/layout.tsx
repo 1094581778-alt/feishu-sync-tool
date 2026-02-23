@@ -4,34 +4,29 @@ import './globals.css';
 
 export const metadata: Metadata = {
   title: {
-    default: '新应用 | 扣子编程',
-    template: '%s | 扣子编程',
+    default: '飞书数据同步平台',
+    template: '%s | 飞书数据同步平台',
   },
   description:
-    '扣子编程是一款一站式云端 Vibe Coding 开发平台。通过对话轻松构建智能体、工作流和网站，实现从创意到上线的无缝衔接。',
+    '飞书数据同步平台 - 用于同步和管理飞书多维表格数据，实现数据的快速处理和分析。',
   keywords: [
-    '扣子编程',
-    'Coze Code',
-    'Vibe Coding',
-    'AI 编程',
-    '智能体搭建',
-    '工作流搭建',
-    '网站搭建',
-    '网站部署',
-    '全栈开发',
-    'AI 工程师',
+    '飞书',
+    '数据同步',
+    '飞书表格',
+    '多维表格',
+    '数据管理',
+    '表格同步',
+    '飞书API',
   ],
-  authors: [{ name: 'Coze Code Team', url: 'https://code.coze.cn' }],
-  generator: 'Coze Code',
+  authors: [{ name: 'Feishu Sync Team' }],
+  generator: 'Next.js',
   // icons: {
   //   icon: '',
   // },
   openGraph: {
-    title: '扣子编程 | 你的 AI 工程师已就位',
+    title: '飞书数据同步平台',
     description:
-      '我正在使用扣子编程 Vibe Coding，让创意瞬间上线。告别拖拽，拥抱心流。',
-    url: 'https://code.coze.cn',
-    siteName: '扣子编程',
+      '飞书数据同步平台 - 高效管理和同步飞书表格数据',
     locale: 'zh_CN',
     type: 'website',
     // images: [
@@ -39,7 +34,7 @@ export const metadata: Metadata = {
     //     url: '',
     //     width: 1200,
     //     height: 630,
-    //     alt: '扣子编程 - 你的 AI 工程师',
+    //     alt: '飞书数据同步平台',
     //   },
     // ],
   },
