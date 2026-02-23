@@ -1,0 +1,369 @@
+import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
+import { TemplateList } from '../TemplateList';
+import { usePerformanceMonitor } from '@/utils/performance';
+import { useAppStore } from '@/store/useAppStore';
+import { useFeishuConfig, useUrlHistory, useHistoryTemplates } from '@/hooks';
+import {
+  Settings,
+  Trash2,
+  CheckCircle2,
+  CheckCircle,
+  Save,
+  Loader2,
+  AlertCircle,
+  X,
+} from 'lucide-react';
+
+interface DebugInfo {
+  requestId?: string;
+  timestamp?: number;
+  spreadsheetToken?: string;
+  tokenType?: string;
+  tokenLength?: number;
+  apiUrl?: string;
+  status?: string;
+  error?: string;
+  responseStatus?: number;
+  tablesCount?: number;
+  autoSelected?: string;
+  responseData?: any;
+}
+
+/**
+ * Step1 优化版本 - 使用 Zustand Store
+ *
+ * 功能：
+ * 1. 输入飞书多维表格链接
+ * 2. 解析链接并获取工作表信息
+ * 3. 显示历史记录和历史模版
+ * 4. 支持批量上传
+ */
+export function Step1Optimized() {
+  // 性能监控
+  usePerformanceMonitor('Step1');
+
+  // 使用 Zustand store
+  const {
+    feishuUrl,
+    parsedConfig,
+    tables,
+    error,
+    debugInfo,
+    loadingTables,
+    inputMode,
+    selectedFile,
+    pastedContent,
+    selectedTableIds,
+    templateFiles,
+    templateSheetNames,
+    templateSyncStatus,
+    showSheetMappingDropdown,
+    batchUploadProgress,
+    activeTab,
+    showFeishuConfig,
+    setFeishuUrl,
+    setParsedConfig,
+    setTables,
+    setError,
+    setDebugInfo,
+    setLoadingTables,
+    setSelectedTableIds,
+    setActiveTab,
+    setTemplateFiles,
+    setTemplateSheetNames,
+    setTemplateSyncStatus,
+    setShowSheetMappingDropdown,
+    setBatchUploadProgress,
+    setShowFeishuConfig,
+  } = useAppStore();
+
+  // 使用自定义 hooks
+  const { appId: feishuAppId, appSecret: feishuAppSecret } = useFeishuConfig();
+  const { history: urlHistory, addToHistory } = useUrlHistory();
+  const { templates: historyTemplates, setTemplates: setHistoryTemplates } = useHistoryTemplates();
+
+  // 处理飞书 URL 变化
+  const handleFeishuUrlChange = (url: string) => {
+    setFeishuUrl(url);
+  };
+
+  // 解析飞书 URL
+  const handleParseUrl = async () => {
+    if (!feishuUrl.trim()) {
+      setError('请输入飞书链接');
+      return;
+    }
+
+    setLoadingTables(true);
+    setError('');
+
+    try {
+      // 添加到历史记录
+      const newHistory = addToHistory(feishuUrl, urlHistory);
+
+      // 这里应该调用飞书 API 获取工作表
+      // 暂时先设置模拟数据
+      setParsedConfig({ spreadsheetToken: 'mock_token' });
+      setTables([
+        { id: 'table1', name: '工作表1' },
+        { id: 'table2', name: '工作表2' },
+      ]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '解析链接失败');
+    } finally {
+      setLoadingTables(false);
+    }
+  };
+
+  // 清空
+  const handleClear = () => {
+    setFeishuUrl('');
+    setParsedConfig(null);
+    setTables([]);
+    setSelectedTableIds([]);
+    setError('');
+  };
+
+  // 选择历史记录
+  const handleSelectHistoryUrl = (url: string) => {
+    setFeishuUrl(url);
+    handleParseUrl();
+  };
+
+  // 删除历史记录
+  const handleDeleteHistoryUrl = (index: number) => {
+    const newHistory = urlHistory.filter((_, i) => i !== index);
+    const historyKey = 'feishuUrlHistory';
+    localStorage.setItem(historyKey, JSON.stringify(newHistory));
+    // 这里需要更新 useUrlHistory 的状态
+    console.log('🗑️ [历史记录] 已删除历史记录:', urlHistory[index]);
+  };
+
+  // 导入模版
+  const handleImportTemplates = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const templates = JSON.parse(event.target?.result as string);
+        setHistoryTemplates(templates);
+        console.log('📥 [模版] 导入模版成功，共', templates.length, '个');
+      } catch (err) {
+        setError('导入模版失败：文件格式错误');
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  // 导出模版
+  const handleExportTemplates = () => {
+    const dataStr = JSON.stringify(historyTemplates, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `feishu_templates_${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    console.log('📤 [模版] 导出模版成功，共', historyTemplates.length, '个');
+  };
+
+  // 批量上传
+  const handleBatchUpload = () => {
+    // 实现批量上传逻辑
+    console.log('🚀 [批量上传] 开始批量上传');
+    setBatchUploadProgress('准备中...');
+  };
+
+  // 删除模版
+  const handleDeleteTemplate = (id: string) => {
+    const newTemplates = historyTemplates.filter(t => t.id !== id);
+    setHistoryTemplates(newTemplates);
+    console.log('🗑️ [模版] 已删除模版:', id);
+  };
+
+  return (
+    <Card className="p-10">
+      <div className="space-y-8">
+        <div>
+          <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-3">
+            【步骤 1/4】输入飞书多维表格链接
+          </h2>
+          <p className="text-base text-gray-600 dark:text-gray-400">
+            请粘贴你的飞书多维表格链接，系统将自动解析并获取工作表信息
+          </p>
+        </div>
+
+        <div>
+          <Label htmlFor="feishu-url" className="text-base font-medium mb-3 block">
+            🔍 请粘贴飞书多维表格链接：
+          </Label>
+          <Input
+            id="feishu-url"
+            type="text"
+            value={feishuUrl}
+            onChange={(e) => handleFeishuUrlChange(e.target.value)}
+            placeholder="https://feishu.cn/base/[app_token]?table=[table_id]"
+            className="flex-1 text-base py-3"
+          />
+        </div>
+
+        {/* 历史记录和模版列表 */}
+        {(urlHistory.length > 0 || historyTemplates.length > 0) && (
+          <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg max-h-[960px] overflow-y-auto">
+            {/* 标签页切换 */}
+            <div className="flex items-center gap-4 border-b border-gray-200 dark:border-gray-700 mb-3">
+              <button
+                type="button"
+                onClick={() => setActiveTab('history')}
+                className={`text-xs font-medium pb-2 border-b-2 transition-colors ${
+                  activeTab === 'history'
+                    ? 'text-blue-600 border-blue-600 dark:text-blue-400 dark:border-blue-400'
+                    : 'text-gray-600 border-transparent hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
+                }`}
+              >
+                📚 历史记录 ({urlHistory.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('template')}
+                className={`text-xs font-medium pb-2 border-b-2 transition-colors ${
+                  activeTab === 'template'
+                    ? 'text-blue-600 border-blue-600 dark:text-blue-400 dark:border-blue-400'
+                    : 'text-gray-600 border-transparent hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
+                }`}
+              >
+                📋 历史模版 ({historyTemplates.length})
+              </button>
+            </div>
+
+            {/* 历史记录内容 */}
+            {activeTab === 'history' && (
+              <>
+                {urlHistory.length > 0 ? (
+                  <div className="space-y-1">
+                    {urlHistory.map((url, idx) => (
+                      <div key={idx} className="flex items-center gap-2 group">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleSelectHistoryUrl(url)}
+                          className="flex-1 justify-start text-left text-xs h-7 px-2 truncate"
+                          title={url}
+                        >
+                          {url}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDeleteHistoryUrl(idx)}
+                          className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                          title="删除"
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500 dark:text-gray-400">暂无历史记录</p>
+                )}
+              </>
+            )}
+
+            {/* 模版列表内容 */}
+            {activeTab === 'template' && historyTemplates.length > 0 && (
+              <TemplateList />
+            )}
+          </div>
+        )}
+
+        {/* 操作按钮 */}
+        <div className="flex items-center gap-3">
+          <Button
+            type="button"
+            onClick={handleParseUrl}
+            disabled={!feishuUrl.trim() || loadingTables}
+            className="flex-1 text-base py-3"
+          >
+            {loadingTables ? (
+              <>
+                <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                解析中...
+              </>
+            ) : (
+              '解析链接'
+            )}
+          </Button>
+
+          {feishuUrl && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleClear}
+              className="text-base py-3"
+            >
+              <Trash2 className="h-5 w-5 mr-2" />
+              清空
+            </Button>
+          )}
+
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setShowFeishuConfig(true)}
+            className="text-base py-3"
+            title="飞书配置"
+          >
+            <Settings className="h-5 w-5" />
+          </Button>
+        </div>
+
+        {/* 错误提示 */}
+        {error && (
+          <div className="p-4 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-lg">
+            <div className="flex items-start">
+              <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400 mr-2 mt-0.5 flex-shrink-0" />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-red-900 dark:text-red-100 mb-1">
+                  发生错误
+                </p>
+                <p className="text-sm text-red-800 dark:text-red-200">{error}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 成功提示 */}
+        {parsedConfig && tables.length > 0 && !error && (
+          <div className="p-4 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg">
+            <div className="flex items-center">
+              <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400 mr-2 flex-shrink-0" />
+              <div>
+                <p className="text-sm font-medium text-green-900 dark:text-green-100">
+                  ✅ 解析成功！检测到 {tables.length} 个工作表
+                </p>
+                {debugInfo.responseStatus && (
+                  <p className="text-xs text-green-800 dark:text-green-200 mt-1">
+                    API 状态: {debugInfo.responseStatus}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </Card>
+  );
+}

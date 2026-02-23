@@ -1,0 +1,123 @@
+'use client';
+
+import dynamic from 'next/dynamic';
+import { Suspense } from 'react';
+import { useAppStore } from '@/store/useAppStore';
+import { Button } from '@/components/ui/button';
+import { Loader2 } from 'lucide-react';
+import { logger, LOG_CATEGORIES } from '@/utils/logger';
+import { useFeishuConfig, useUrlHistory, useHistoryTemplates } from '@/hooks';
+
+// 动态导入步骤组件（代码分割）
+const Step1 = dynamic(() => import('@/components/steps/Step1').then(mod => ({ default: mod.Step1 })), {
+  loading: () => <StepSkeleton />,
+  ssr: false,
+});
+
+const Step2 = dynamic(() => import('@/components/steps/Step2').then(mod => ({ default: mod.Step2 })), {
+  loading: () => <StepSkeleton />,
+  ssr: false,
+});
+
+const Step3 = dynamic(() => import('@/components/steps/Step3').then(mod => ({ default: mod.Step3 })), {
+  loading: () => <StepSkeleton />,
+  ssr: false,
+});
+
+const Step4 = dynamic(() => import('@/components/steps/Step4').then(mod => ({ default: mod.Step4 })), {
+  loading: () => <StepSkeleton />,
+  ssr: false,
+});
+
+// 动态导入弹窗组件
+const FeishuConfig = dynamic(() => import('@/components/dialogs/FeishuConfig').then(mod => ({ default: mod.FeishuConfig })), {
+  ssr: false,
+});
+
+const SaveTemplateDialog = dynamic(() => import('@/components/dialogs/SaveTemplateDialog').then(mod => ({ default: mod.SaveTemplateDialog })), {
+  ssr: false,
+});
+
+const TemplateList = dynamic(() => import('@/components/TemplateList').then(mod => ({ default: mod.TemplateList })), {
+  ssr: false,
+});
+
+/**
+ * 步骤骨架屏
+ */
+function StepSkeleton() {
+  return (
+    <div className="flex items-center justify-center p-12">
+      <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+      <span className="ml-2 text-gray-600">加载中...</span>
+    </div>
+  );
+}
+
+/**
+ * 主页面组件
+ */
+export default function FileUploadPage() {
+  // 使用 Zustand store
+  const currentStep = useAppStore((state) => state.currentStep);
+  const showFeishuConfig = useAppStore((state) => state.showFeishuConfig);
+  
+  // 使用自定义 hooks
+  const { appId: feishuAppId, appSecret: feishuAppSecret, setAppId: setFeishuAppId, setAppSecret: setFeishuAppSecret } = useFeishuConfig();
+  const { history: urlHistory } = useUrlHistory();
+  const { templates: historyTemplates, setTemplates: setHistoryTemplates } = useHistoryTemplates();
+
+  const setShowFeishuConfig = useAppStore((state) => state.setShowFeishuConfig);
+
+  // 组件挂载日志
+  logger.info(LOG_CATEGORIES.COMPONENT, '主页面组件已挂载');
+
+  // 渲染步骤内容
+  const renderStep = () => {
+    switch (currentStep) {
+      case 1:
+        return <Step1 />;
+      case 2:
+        return <Step2 />;
+      case 3:
+        return <Step3 />;
+      case 4:
+        return <Step4 />;
+      default:
+        return <Step1 />;
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
+      {/* 飞书配置对话框 */}
+      <FeishuConfig
+        open={showFeishuConfig}
+        onOpenChange={setShowFeishuConfig}
+        config={{ appId: feishuAppId, appSecret: feishuAppSecret }}
+        onSave={(config) => {
+          setFeishuAppId(config.appId);
+          setFeishuAppSecret(config.appSecret);
+        }}
+      />
+
+      {/* 主容器 */}
+      <div className="max-w-7xl mx-auto p-6">
+        {/* 标题 */}
+        <div className="mb-8 text-center">
+          <h1 className="text-4xl font-bold text-slate-900 dark:text-slate-100 mb-2">
+            飞书文件上传工具
+          </h1>
+          <p className="text-lg text-slate-600 dark:text-slate-400">
+            支持多工作表批量上传、Excel多Sheet识别、智能字段匹配
+          </p>
+        </div>
+
+        {/* 步骤内容 */}
+        <Suspense fallback={<StepSkeleton />}>
+          {renderStep()}
+        </Suspense>
+      </div>
+    </div>
+  );
+}

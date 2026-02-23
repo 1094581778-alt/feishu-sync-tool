@@ -1,0 +1,12 @@
+{
+  "buildCommand": "pnpm build",
+  "outputDirectory": ".next",
+  "devCommand": "pnpm dev",
+  "installCommand": "pnpm install",
+  "framework": "nextjs",
+  "regions": ["hkg1"],
+  "env": {
+    "FEISHU_APP_ID": "@feishu-app-id",
+    "FEISHU_APP_SECRET": "@feishu-app-secret"
+  }
+}

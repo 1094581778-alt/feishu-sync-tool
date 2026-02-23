@@ -1,0 +1,23 @@
+# Tauri 相关
+src-tauri
+
+# 文档和调试文件
+*.md
+DEBUG_*.md
+*.bat
+*.sh
+
+# 可执行文件
+*.exe
+*.lnk
+
+# 临时文件
+*.tmp
+*.temp
+
+# 测试文件
+test-*.sh
+*.backup
+
+# 构建脚本
+scripts/
