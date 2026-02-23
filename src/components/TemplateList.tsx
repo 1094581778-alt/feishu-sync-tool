@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -99,32 +99,6 @@ export function TemplateList({
   batchUploadProgress,
 }: TemplateListProps) {
   const [showClearAllDialog, setShowClearAllDialog] = useState(false);
-
-  // 初始化：自动加载已有文件的 Sheet 名称
-  useEffect(() => {
-    const initializeSheetNames = async () => {
-      for (const template of historyTemplates) {
-        const file = templateFiles[template.id];
-        if (file && !templateSheetNames[template.id]) {
-          try {
-            const buffer = await file.arrayBuffer();
-            const XLSX = await import('xlsx');
-            const workbook = XLSX.read(buffer, { type: 'array' });
-            setTemplateSheetNames((prev) => ({
-              ...prev,
-              [template.id]: workbook.SheetNames,
-            }));
-            console.log(
-              `✅ [历史模版] 已初始化模版 "${template.name}" 的 Sheet 名称: ${workbook.SheetNames.join(', ')}`
-            );
-          } catch (error) {
-            console.error(`❌ [历史模版] 初始化模版 "${template.name}" 的 Sheet 名称失败:`, error);
-          }
-        }
-      }
-    };
-    initializeSheetNames();
-  }, [historyTemplates, templateFiles, templateSheetNames, setTemplateSheetNames]);
 
   // 刷新字段匹配的函数
   const refreshFieldMatches = async (template: HistoryTemplate) => {
