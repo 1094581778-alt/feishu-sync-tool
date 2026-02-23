@@ -188,13 +188,21 @@ export function TemplateList({
         const sheetName = template.tableToSheetMapping[tableId];
         console.log(`🔍 [历史模版] 检查表 ${tableId} -> Sheet: ${sheetName}`);
 
-        if (sheetName && workbook.Sheets[sheetName]) {
-          const worksheet = workbook.Sheets[sheetName];
+        // 大小写不敏感查找工作表
+        let actualSheetName = sheetName;
+        if (sheetName) {
+          actualSheetName = workbook.SheetNames.find(
+            (name) => name.toLowerCase() === sheetName.toLowerCase()
+          ) || sheetName;
+        }
+
+        if (sheetName && workbook.Sheets[actualSheetName]) {
+          const worksheet = workbook.Sheets[actualSheetName];
           const jsonData = XLSX.utils.sheet_to_json<
             Record<string, any>
           >(worksheet, { raw: false });
 
-          console.log(`📊 [历史模版] Sheet "${sheetName}" 有 ${jsonData.length} 行数据`);
+          console.log(`📊 [历史模版] Sheet "${actualSheetName}" 有 ${jsonData.length} 行数据`);
 
           if (jsonData.length > 0) {
             const excelColumns = Object.keys(jsonData[0]);
@@ -385,7 +393,7 @@ export function TemplateList({
           const hasSheetMappingErrors = template.selectedTableIds.some((tableId: string) => {
             const savedSheet = template.tableToSheetMapping?.[tableId];
             if (!savedSheet) return true;
-            const sheetExists = sheetNames.includes(savedSheet);
+            const sheetExists = sheetNames.some((sheet) => sheet.toLowerCase() === savedSheet.toLowerCase());
             if (!sheetExists) return true;
             const matches = template.fieldMatchResults?.[tableId] || [];
             const matchedCount = matches.filter((m: any) => m.matched).length;
@@ -857,7 +865,7 @@ export function TemplateList({
                           const savedSheet = template.tableToSheetMapping?.[tableId];
                           const sheetNames = templateSheetNames[template.id] || [];
                           const sheetExists = savedSheet
-                            ? sheetNames.includes(savedSheet)
+                            ? sheetNames.some((sheet) => sheet.toLowerCase() === savedSheet.toLowerCase())
                             : false;
                           const matches = template.fieldMatchResults?.[tableId] || [];
                           const matchedCount = matches.filter((m: any) => m.matched).length;
