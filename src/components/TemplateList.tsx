@@ -163,7 +163,7 @@ export function TemplateList({
         const XLSX = await import('xlsx');
         const buffer = await file.arrayBuffer();
         const workbook = XLSX.read(buffer, { type: 'array' });
-        const sheetName = template.tableToSheetMapping?.[tableId];
+        const sheetName: string | undefined = template.tableToSheetMapping?.[tableId];
         
         if (sheetName) {
           // 大小写不敏感查找工作表
@@ -337,7 +337,7 @@ export function TemplateList({
       const newFieldMatches: Record<string, FieldMatchResult[]> = {};
 
       for (const tableId of template.selectedTableIds) {
-        const sheetName = template.tableToSheetMapping?.[tableId];
+        const sheetName: string | undefined = template.tableToSheetMapping?.[tableId];
         console.log(`🔍 [历史模版] 检查表 ${tableId} -> Sheet: ${sheetName}`);
 
         // 大小写不敏感查找工作表
@@ -530,7 +530,7 @@ export function TemplateList({
             // 重新计算字段匹配
             const refreshedFieldMatches: Record<string, FieldMatchResult[]> = {};
             for (const tid of template.selectedTableIds) {
-              const sheetName = template.tableToSheetMapping[tid];
+              const sheetName: string | undefined = template.tableToSheetMapping[tid];
               let actualSheetName = sheetName;
               if (sheetName) {
                 actualSheetName = workbook.SheetNames.find(
