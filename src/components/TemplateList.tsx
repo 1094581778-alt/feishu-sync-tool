@@ -163,7 +163,7 @@ export function TemplateList({
         const XLSX = await import('xlsx');
         const buffer = await file.arrayBuffer();
         const workbook = XLSX.read(buffer, { type: 'array' });
-        const sheetName = template.tableToSheetMapping[tableId];
+        const sheetName = template.tableToSheetMapping?.[tableId];
         
         if (sheetName) {
           // 大小写不敏感查找工作表
