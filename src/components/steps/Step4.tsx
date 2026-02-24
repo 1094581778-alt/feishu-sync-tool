@@ -136,7 +136,10 @@ export function Step4({
               )}
             </Button>
             <Button
-              onClick={() => setCurrentStep(3)}
+              onClick={() => {
+                setCurrentStep(3);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
               disabled={uploading}
               variant="outline"
             >
@@ -317,6 +320,7 @@ export function Step4({
                 onClick={() => {
                   setUploadResults({});
                   setCurrentStep(3);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
                 variant="outline"
                 className="flex-1"
@@ -330,6 +334,7 @@ export function Step4({
                   setSelectedFile(null);
                   setPastedContent('');
                   setCurrentStep(1);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
                 className="flex-1"
               >

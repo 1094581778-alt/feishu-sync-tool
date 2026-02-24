@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { FilePathSelector } from '@/components/FilePathSelector';
+import { CreateNewTableDialog } from '@/components/CreateNewTableDialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -35,8 +36,13 @@ import {
   X,
   Check,
   Trash2,
+  Plus,
 } from 'lucide-react';
 import type { HistoryTemplate, FeishuTable, FieldMatchResult } from '@/types';
+import { useTemplateManagement } from '@/hooks/useTemplateManagement';
+import { createFeishuTable } from '@/services/feishuApi';
+import { readExcelData } from '@/utils/excelUtils';
+import { calculateFieldMatches, detectFieldType } from '@/utils/templateUtils';
 
 interface TemplateListProps {
   historyTemplates: HistoryTemplate[];
@@ -69,6 +75,7 @@ interface TemplateListProps {
   showSaveSuccess: string | null;
   setShowSaveSuccess: React.Dispatch<React.SetStateAction<string | null>>;
   batchUploadProgress?: string;
+  onRefreshTables?: (spreadsheetToken: string) => Promise<void>;
 }
 
 export function TemplateList({
@@ -102,514 +109,129 @@ export function TemplateList({
   showSaveSuccess,
   setShowSaveSuccess,
   batchUploadProgress,
+  onRefreshTables,
 }: TemplateListProps) {
   const [showClearAllDialog, setShowClearAllDialog] = useState(false);
-  const [autoAddFields, setAutoAddFields] = useState<Record<string, boolean>>({});
-  const [addingFields, setAddingFields] = useState<Record<string, boolean>>({});
+  const [showCreateTableDialog, setShowCreateTableDialog] = useState(false);
+  const [creatingTable, setCreatingTable] = useState(false);
+  const [currentTemplateForCreate, setCurrentTemplateForCreate] = useState<HistoryTemplate | null>(null);
+  
+  const {
+    autoAddFields,
+    setAutoAddFields,
+    addingFields,
+    addUnmatchedFieldsToFeishu,
+    refreshFieldMatches,
+    handleFileUpload,
+  } = useTemplateManagement({
+    historyTemplates,
+    templateFiles,
+    tableFields,
+    feishuAppId,
+    feishuAppSecret,
+    setTemplateFiles,
+    setTemplateSheetNames,
+    setHistoryTemplates,
+    setTableFields,
+    setShowSaveSuccess,
+  });
 
-  // 自动检测字段类型
-  const detectFieldType = (excelField: string, jsonData: Record<string, any>[]) => {
-    // 检查是否为数字类型
-    const values = jsonData.map(row => row[excelField]);
-    const allNumbers = values.every(value => {
-      if (value === null || value === undefined) return true;
-      return !isNaN(Number(value));
-    });
-    
-    if (allNumbers) {
-      return 'number';
-    }
-    
-    // 检查是否为日期类型
-    const dateFormats = [
-      /^\d{4}-\d{2}-\d{2}$/,
-      /^\d{2}\/\d{2}\/\d{4}$/,
-      /^\d{4}\/\d{2}\/\d{2}$/
-    ];
-    const allDates = values.every(value => {
-      if (value === null || value === undefined) return true;
-      return dateFormats.some(format => format.test(value.toString()));
-    });
-    
-    if (allDates) return 'date';
-    
-    return 'text';
-  };
+  const handleCreateNewTable = async (tableName: string) => {
+    if (!currentTemplateForCreate) return;
 
-  // 添加未匹配字段到飞书表格
-  const addUnmatchedFieldsToFeishu = async (template: HistoryTemplate, tableId: string, skipRefresh = false) => {
-    const matches = template.fieldMatchResults?.[tableId] || [];
-    const unmatchedFields = matches.filter((m: any) => !m.matched);
-
-    if (unmatchedFields.length === 0) {
-      if (!skipRefresh) {
-        setShowSaveSuccess('✅ 没有未匹配字段需要添加');
-        setTimeout(() => setShowSaveSuccess(null), 3000);
-      }
-      return;
-    }
-
-    setAddingFields(prev => ({ ...prev, [`${template.id}-${tableId}`]: true }));
-
+    setCreatingTable(true);
     try {
-      let successCount = 0;
-      let failedFields: string[] = [];
-      let skippedFields: string[] = [];
+      const { response, data } = await createFeishuTable(
+        currentTemplateForCreate.spreadsheetToken,
+        tableName,
+        feishuAppId,
+        feishuAppSecret
+      );
 
-      // 读取Excel文件获取数据以检测字段类型
-      const file = templateFiles[template.id];
-      let jsonData: Record<string, any>[] = [];
-      if (file) {
-        const XLSX = await import('xlsx');
-        const buffer = await file.arrayBuffer();
-        const workbook = XLSX.read(buffer, { type: 'array' });
-        const sheetName = template.tableToSheetMapping?.[tableId];
-        
-        if (sheetName) {
-          // 大小写不敏感查找工作表
-          const actualSheetName = workbook.SheetNames.find(
-            (name) => name.toLowerCase() === sheetName.toLowerCase()
-          ) || sheetName;
-          
-          if (workbook.Sheets[actualSheetName]) {
-            jsonData = XLSX.utils.sheet_to_json<Record<string, any>>(
-              workbook.Sheets[actualSheetName], 
-              { raw: false }
-            );
-          }
-        }
-      }
+      if (data.success) {
+        console.log(`✅ [历史模版] 已创建新工作表 "${tableName}"`);
 
-      for (const field of unmatchedFields) {
-        try {
-          // 自动检测字段类型
-          const fieldType = detectFieldType(field.excelField, jsonData);
-          
-          const requestBody: any = {
-            token: template.spreadsheetToken,
-            tableId,
-            fieldName: field.excelField,
-            fieldType: fieldType
-          };
+        const newTable = {
+          id: data.table.id,
+          name: data.table.name,
+        };
 
-          if (feishuAppId && feishuAppSecret) {
-            requestBody.appId = feishuAppId;
-            requestBody.appSecret = feishuAppSecret;
-          }
+        const updatedTemplates = historyTemplates.map((temp) =>
+          temp.id === currentTemplateForCreate.id
+            ? {
+                ...temp,
+                selectedTableIds: [newTable.id],
+                tableToSheetMapping: { [newTable.id]: Object.values(temp.tableToSheetMapping || {})[0] || '' },
+              }
+            : temp
+        );
 
-          const response = await fetch(`${window.location.origin}/api/feishu/add-field`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(requestBody),
-          });
+        setHistoryTemplates(updatedTemplates);
+        localStorage.setItem('feishuHistoryTemplates', JSON.stringify(updatedTemplates));
 
-          const data = await response.json();
-          if (data.success) {
-            successCount++;
-            console.log(`✅ [历史模版] 已添加字段 "${field.excelField}" (类型: ${fieldType}) 到飞书表格`);
-          } else {
-            // 检查是否是字段已存在的错误
-            if (data.error?.includes('已存在') || response.status === 409) {
-              console.log(`⚠️ [历史模版] 字段 "${field.excelField}" 已存在，跳过`);
-              skippedFields.push(field.excelField);
-            } else {
-              failedFields.push(field.excelField);
-              console.error(`❌ [历史模版] 添加字段 "${field.excelField}" 失败:`, data.error);
-            }
-          }
-        } catch (error) {
-          failedFields.push(field.excelField);
-          console.error(`❌ [历史模版] 添加字段 "${field.excelField}" 请求失败:`, error);
-        }
-      }
-
-      // 如果不是从 refreshFieldMatches 调用的，则刷新字段信息
-      if (!skipRefresh) {
-        await refreshFieldMatches(template);
-      }
-
-      if (!skipRefresh) {
-        // 构建结果消息
-        let message = '';
-        if (successCount > 0) {
-          message += `✅ 成功添加 ${successCount} 个字段`;
-        }
-        if (skippedFields.length > 0) {
-          message += (message ? '，' : '') + `⚠️ 跳过 ${skippedFields.length} 个已存在字段`;
-        }
-        if (failedFields.length > 0) {
-          message += (message ? '，' : '') + `❌ 失败 ${failedFields.length} 个字段`;
-        }
-        if (!message) {
-          message = '✅ 没有需要添加的字段';
-        }
-
-        setShowSaveSuccess(message);
+        setShowCreateTableDialog(false);
+        setShowSaveSuccess(`工作表 "${tableName}" 创建成功，正在添加字段...`);
         setTimeout(() => setShowSaveSuccess(null), 3000);
-      }
-    } catch (error) {
-      console.error(`❌ [历史模版] 添加字段失败:`, error);
-      if (!skipRefresh) {
-        setShowSaveSuccess('❌ 添加字段失败，请检查网络连接');
-        setTimeout(() => setShowSaveSuccess(null), 3000);
-      }
-    } finally {
-      setAddingFields(prev => ({ ...prev, [`${template.id}-${tableId}`]: false }));
-    }
-  };
 
-  // 刷新字段匹配的函数
-  const refreshFieldMatches = async (template: HistoryTemplate) => {
-    const file = templateFiles[template.id];
-    const sheetNames = templateSheetNames[template.id] || [];
-
-    console.log(`🔄 [历史模版] 开始刷新模版 "${template.name}"`);
-    console.log(`📁 文件状态:`, file ? `${file.name} (已加载)` : '未上传');
-    console.log(`📊 Sheet映射:`, template.tableToSheetMapping);
-
-    if (!file) {
-      console.error(`❌ [历史模版] 模版 "${template.name}" 没有上传文件`);
-      setShowSaveSuccess('⚠️ 请先上传Excel文件后再刷新字段匹配');
-      setTimeout(() => setShowSaveSuccess(null), 5000);
-      return;
-    }
-
-    if (!template.tableToSheetMapping || Object.keys(template.tableToSheetMapping).length === 0) {
-      console.error(`❌ [历史模版] 模版 "${template.name}" 没有配置Sheet映射`);
-      setShowSaveSuccess('⚠️ 请先配置Sheet映射后再刷新字段匹配');
-      setTimeout(() => setShowSaveSuccess(null), 5000);
-      return;
-    }
-
-    try {
-      // 重新获取飞书字段信息（不使用缓存）
-      const newTableFields: Record<string, any[]> = {};
-      for (const tableId of template.selectedTableIds) {
-        try {
-          const requestBody: any = { 
-            token: template.spreadsheetToken, 
-            tableId 
-          };
-          if (feishuAppId && feishuAppSecret) {
-            requestBody.appId = feishuAppId;
-            requestBody.appSecret = feishuAppSecret;
-          }
-
-          const response = await fetch(`${window.location.origin}/api/feishu/fields`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(requestBody),
-          });
-          const data = await response.json();
-          if (data.success) {
-            newTableFields[tableId] = data.fields;
-            console.log(`✅ [历史模版] 已获取表 ${tableId} 字段:`, data.fields.length);
-          } else {
-            console.error(`❌ [历史模版] 获取表 ${tableId} 字段失败:`, data.error);
-          }
-        } catch (error) {
-          console.error(`❌ [历史模版] 获取表 ${tableId} 字段请求失败:`, error);
-        }
-      }
-
-      // 更新 tableFields
-      if (Object.keys(newTableFields).length > 0) {
-        setTableFields(prev => ({ ...prev, ...newTableFields }));
-      }
-
-      const XLSX = await import('xlsx');
-      const buffer = await file.arrayBuffer();
-      const workbook = XLSX.read(buffer, { type: 'array' });
-
-      console.log(`📋 [历史模版] 读取到 ${workbook.SheetNames.length} 个Sheet:`, workbook.SheetNames);
-
-      // 更新 Sheet 名称
-      setTemplateSheetNames((prev) => ({
-        ...prev,
-        [template.id]: workbook.SheetNames,
-      }));
-
-      // 重新分析每个工作表的字段匹配
-      const newFieldMatches: Record<string, FieldMatchResult[]> = {};
-
-      for (const tableId of template.selectedTableIds) {
-        const sheetName = template.tableToSheetMapping?.[tableId];
-        console.log(`🔍 [历史模版] 检查表 ${tableId} -> Sheet: ${sheetName}`);
-
-        // 大小写不敏感查找工作表
-        let actualSheetName = sheetName;
-        if (sheetName) {
-          actualSheetName = workbook.SheetNames.find(
-            (name) => name.toLowerCase() === sheetName.toLowerCase()
-          ) || sheetName;
+        if (onRefreshTables) {
+          await onRefreshTables(currentTemplateForCreate.spreadsheetToken);
         }
 
-        if (sheetName && workbook.Sheets[actualSheetName]) {
-          const worksheet = workbook.Sheets[actualSheetName];
-          const jsonData = XLSX.utils.sheet_to_json<
-            Record<string, any>
-          >(worksheet, { raw: false });
-
-          console.log(`📊 [历史模版] Sheet "${actualSheetName}" 有 ${jsonData.length} 行数据`);
-
+        const file = templateFiles[currentTemplateForCreate.id];
+        if (file) {
+          const jsonData = await readExcelData(currentTemplateForCreate, newTable.id, file);
           if (jsonData.length > 0) {
             const excelColumns = Object.keys(jsonData[0]);
-            const feishuFields = newTableFields[tableId] || [];
-            const feishuFieldNames = feishuFields.map(
-              (f: any) => f.field_name || f.name
-            );
+            
+            const feishuFieldsResponse = await fetch(`${window.location.origin}/api/feishu/fields`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                token: currentTemplateForCreate.spreadsheetToken,
+                tableId: newTable.id,
+                appId: feishuAppId,
+                appSecret: feishuAppSecret,
+              }),
+            });
+            const feishuFieldsData = await feishuFieldsResponse.json();
+            const feishuFields = feishuFieldsData.fields || [];
+            const feishuFieldNames = feishuFields.map((f: any) => f.field_name || f.name);
 
-            console.log(`📝 [历史模版] Excel列:`, excelColumns);
-            console.log(`📝 [历史模版] 飞书字段:`, feishuFieldNames);
+            const results: FieldMatchResult[] = calculateFieldMatches(excelColumns, feishuFieldNames);
+            const unmatchedFields = results.filter((m: any) => !m.matched);
 
-            // 模糊匹配
-            const normalizeFieldName = (name: string) =>
-              name.trim().toLowerCase().replace(/\s+/g, '');
+            console.log(`📋 [新建工作表] Excel字段数量: ${excelColumns.length}`);
+            console.log(`📋 [新建工作表] 飞书字段数量: ${feishuFields.length}`);
+            console.log(`📋 [新建工作表] 未匹配字段数量: ${unmatchedFields.length}`);
 
-            const results: FieldMatchResult[] =
-              excelColumns.map((excelField) => {
-                let feishuField = feishuFieldNames.find(
-                  (fn: string) => fn === excelField
-                );
-                if (!feishuField) {
-                  const normalizedExcelField =
-                    normalizeFieldName(excelField);
-                  feishuField = feishuFieldNames.find(
-                    (fn: string) =>
-                      normalizeFieldName(fn) ===
-                      normalizedExcelField
-                  );
-                }
-                return {
-                  excelField,
-                  feishuField: feishuField || null,
-                  matched: !!feishuField,
-                };
-              });
-
-            newFieldMatches[tableId] = results;
-            console.log(`✅ [历史模版] 表 ${tableId} 匹配结果: ${results.filter(r => r.matched).length}/${results.length}`);
-          }
-        } else {
-          console.warn(`⚠️ [历史模版] Sheet "${sheetName}" 不存在`);
-        }
-      }
-
-      // 更新模版的字段匹配结果
-      const updatedTemplates = historyTemplates.map((temp) =>
-        temp.id === template.id
-          ? { ...temp, fieldMatchResults: newFieldMatches, tableFields: newTableFields }
-          : temp
-      );
-      setHistoryTemplates(updatedTemplates);
-      localStorage.setItem(
-        'feishuHistoryTemplates',
-        JSON.stringify(updatedTemplates)
-      );
-
-      console.log(
-        `✅ [历史模版] 已刷新模版 "${template.name}" 的字段匹配`
-      );
-
-      // 检查是否需要自动添加未匹配字段
-      for (const tableId of template.selectedTableIds) {
-        const matches = newFieldMatches[tableId] || [];
-        const unmatchedFields = matches.filter((m: any) => !m.matched);
-        const autoAddEnabled = autoAddFields[`${template.id}-${tableId}`];
-
-        if (autoAddEnabled && unmatchedFields.length > 0) {
-          console.log(`🔄 [历史模版] 自动添加 ${unmatchedFields.length} 个未匹配字段到表 ${tableId}`);
-          
-          setAddingFields(prev => ({ ...prev, [`${template.id}-${tableId}`]: true }));
-          
-          try {
-            let successCount = 0;
-            let failedFields: string[] = [];
-            let skippedFields: string[] = [];
-
-            // 重新获取jsonData用于字段类型检测
-            let jsonData: Record<string, any>[] = [];
-            const sheetName: string | undefined = template.tableToSheetMapping?.[tableId];
-            if (sheetName) {
-              // 大小写不敏感查找工作表
-              const actualSheetName = workbook.SheetNames.find(
-                (name) => name.toLowerCase() === sheetName.toLowerCase()
-              ) || sheetName;
+            if (unmatchedFields.length > 0) {
+              console.log(`➕ [新建工作表] 开始添加 ${unmatchedFields.length} 个未匹配字段`);
+              await addUnmatchedFieldsToFeishu(currentTemplateForCreate, newTable.id, true);
               
-              if (workbook.Sheets[actualSheetName]) {
-                jsonData = XLSX.utils.sheet_to_json<Record<string, any>>(
-                  workbook.Sheets[actualSheetName], 
-                  { raw: false }
-                );
-              }
+              console.log(`⏳ [新建工作表] 等待字段添加完成...`);
+              await new Promise(resolve => setTimeout(resolve, 2000));
+              
+              console.log(`🔄 [新建工作表] 刷新字段匹配结果`);
+              await refreshFieldMatches(currentTemplateForCreate);
+            } else {
+              console.log(`✅ [新建工作表] 所有字段已匹配，无需添加`);
+              await refreshFieldMatches(currentTemplateForCreate);
             }
-
-            for (const field of unmatchedFields) {
-              try {
-                // 自动检测字段类型
-                const fieldType = detectFieldType(field.excelField, jsonData);
-                
-                const requestBody: any = {
-                  token: template.spreadsheetToken,
-                  tableId,
-                  fieldName: field.excelField,
-                  fieldType: fieldType
-                };
-
-                if (feishuAppId && feishuAppSecret) {
-                  requestBody.appId = feishuAppId;
-                  requestBody.appSecret = feishuAppSecret;
-                }
-
-                const response = await fetch(`${window.location.origin}/api/feishu/add-field`, {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                  },
-                  body: JSON.stringify(requestBody),
-                });
-
-                const data = await response.json();
-                if (data.success) {
-                  successCount++;
-                  console.log(`✅ [历史模版] 已添加字段 "${field.excelField}" 到飞书表格`);
-                } else {
-                  // 检查是否是字段已存在的错误
-                  if (data.error?.includes('已存在') || response.status === 409) {
-                    console.log(`⚠️ [历史模版] 字段 "${field.excelField}" 已存在，跳过`);
-                    skippedFields.push(field.excelField);
-                  } else {
-                    failedFields.push(field.excelField);
-                    console.error(`❌ [历史模版] 添加字段 "${field.excelField}" 失败:`, data.error);
-                  }
-                }
-              } catch (error) {
-                failedFields.push(field.excelField);
-                console.error(`❌ [历史模版] 添加字段 "${field.excelField}" 请求失败:`, error);
-              }
-            }
-
-            // 手动刷新字段信息
-            const refreshedTableFields: Record<string, any[]> = {};
-            for (const tid of template.selectedTableIds) {
-              try {
-                const requestBody: any = { 
-                  token: template.spreadsheetToken, 
-                  tableId: tid 
-                };
-                if (feishuAppId && feishuAppSecret) {
-                  requestBody.appId = feishuAppId;
-                  requestBody.appSecret = feishuAppSecret;
-                }
-
-                const response = await fetch(`${window.location.origin}/api/feishu/fields`, {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                  },
-                  body: JSON.stringify(requestBody),
-                });
-                const data = await response.json();
-                if (data.success) {
-                  refreshedTableFields[tid] = data.fields;
-                }
-              } catch (error) {
-                console.error(`❌ [历史模版] 获取表 ${tid} 字段失败:`, error);
-              }
-            }
-
-            // 更新 tableFields
-            if (Object.keys(refreshedTableFields).length > 0) {
-              setTableFields(prev => ({ ...prev, ...refreshedTableFields }));
-            }
-
-            // 重新计算字段匹配
-            const refreshedFieldMatches: Record<string, FieldMatchResult[]> = {};
-            for (const tid of template.selectedTableIds) {
-              const sheetName = template.tableToSheetMapping[tid];
-              let actualSheetName = sheetName;
-              if (sheetName) {
-                actualSheetName = workbook.SheetNames.find(
-                  (name) => name.toLowerCase() === sheetName.toLowerCase()
-                ) || sheetName;
-              }
-
-              if (sheetName && workbook.Sheets[actualSheetName]) {
-                const worksheet = workbook.Sheets[actualSheetName];
-                const jsonData = XLSX.utils.sheet_to_json<Record<string, any>>(worksheet, { raw: false });
-
-                if (jsonData.length > 0) {
-                  const excelColumns = Object.keys(jsonData[0]);
-                  const feishuFields = refreshedTableFields[tid] || newTableFields[tid] || [];
-                  const feishuFieldNames = feishuFields.map((f: any) => f.field_name || f.name);
-
-                  const normalizeFieldName = (name: string) =>
-                    name.trim().toLowerCase().replace(/\s+/g, '');
-
-                  const results: FieldMatchResult[] = excelColumns.map((excelField) => {
-                    let feishuField = feishuFieldNames.find((fn: string) => fn === excelField);
-                    if (!feishuField) {
-                      const normalizedExcelField = normalizeFieldName(excelField);
-                      feishuField = feishuFieldNames.find((fn: string) =>
-                        normalizeFieldName(fn) === normalizedExcelField
-                      );
-                    }
-                    return {
-                      excelField,
-                      feishuField: feishuField || null,
-                      matched: !!feishuField,
-                    };
-                  });
-
-                  refreshedFieldMatches[tid] = results;
-                }
-              }
-            }
-
-            // 更新模版的字段匹配结果
-            const finalTemplates = historyTemplates.map((temp) =>
-              temp.id === template.id
-                ? { ...temp, fieldMatchResults: refreshedFieldMatches, tableFields: refreshedTableFields }
-                : temp
-            );
-            setHistoryTemplates(finalTemplates);
-            localStorage.setItem('feishuHistoryTemplates', JSON.stringify(finalTemplates));
-
-            // 构建结果消息
-            let message = '';
-            if (successCount > 0) {
-              message += `✅ 成功添加 ${successCount} 个字段`;
-            }
-            if (skippedFields.length > 0) {
-              message += (message ? '，' : '') + `⚠️ 跳过 ${skippedFields.length} 个已存在字段`;
-            }
-            if (failedFields.length > 0) {
-              message += (message ? '，' : '') + `❌ 失败 ${failedFields.length} 个字段`;
-            }
-            if (!message) {
-              message = '✅ 没有需要添加的字段';
-            }
-
-            setShowSaveSuccess(message);
-          } catch (error) {
-            console.error(`❌ [历史模版] 自动添加字段失败:`, error);
-            setShowSaveSuccess('❌ 自动添加字段失败，请检查网络连接');
-          } finally {
-            setAddingFields(prev => ({ ...prev, [`${template.id}-${tableId}`]: false }));
           }
         }
+      } else {
+        setShowSaveSuccess(`创建工作表失败: ${data.error}`);
+        setTimeout(() => setShowSaveSuccess(null), 3000);
       }
-
-      setShowSaveSuccess('✅ 字段匹配已刷新');
-      setTimeout(() => setShowSaveSuccess(null), 3000);
     } catch (error) {
-      console.error(`❌ [历史模版] 刷新失败:`, error);
-      setShowSaveSuccess('❌ 刷新失败，请检查文件');
+      console.error('❌ [历史模版] 创建工作表失败:', error);
+      setShowSaveSuccess('创建工作表失败，请重试');
       setTimeout(() => setShowSaveSuccess(null), 3000);
+    } finally {
+      setCreatingTable(false);
+      setCurrentTemplateForCreate(null);
     }
   };
 
@@ -931,24 +553,7 @@ export function TemplateList({
                     onChange={async (e) => {
                       const file = e.target.files?.[0];
                       if (file) {
-                        // 分析文件中的Sheet
-                        const buffer = await file.arrayBuffer();
-                        const XLSX = await import('xlsx');
-                        const workbook = XLSX.read(buffer, { type: 'array' });
-
-                        // 保存到临时状态
-                        setTemplateFiles((prev) => ({ ...prev, [template.id]: file }));
-                        setTemplateSheetNames((prev) => ({
-                          ...prev,
-                          [template.id]: workbook.SheetNames,
-                        }));
-
-                        console.log(
-                          `✅ [历史模版] 模版 "${template.name}" 已上传文件: ${file.name}, 包含 ${workbook.SheetNames.length} 个Sheet`
-                        );
-
-                        // 自动触发字段匹配刷新
-                        await refreshFieldMatches(template);
+                        await handleFileUpload(template.id, file);
                         setShowSaveSuccess('文件已上传，字段匹配已刷新');
                         setTimeout(() => setShowSaveSuccess(null), 3000);
                       }
@@ -984,24 +589,7 @@ export function TemplateList({
                     templateId={template.id}
                     filePath={template.filePath}
                     onFileSelect={async (file) => {
-                      // 分析文件中的Sheet
-                      const buffer = await file.arrayBuffer();
-                      const XLSX = await import('xlsx');
-                      const workbook = XLSX.read(buffer, { type: 'array' });
-
-                      // 保存到临时状态
-                      setTemplateFiles((prev) => ({ ...prev, [template.id]: file }));
-                      setTemplateSheetNames((prev) => ({
-                        ...prev,
-                        [template.id]: workbook.SheetNames,
-                      }));
-
-                      console.log(
-                        `✅ [历史模版] 模版 "${template.name}" 已通过路径选择文件: ${file.name}, 包含 ${workbook.SheetNames.length} 个Sheet`
-                      );
-
-                      // 自动触发字段匹配刷新
-                      await refreshFieldMatches(template);
+                      await handleFileUpload(template.id, file);
                       setShowSaveSuccess('文件已选择，字段匹配已刷新');
                       setTimeout(() => setShowSaveSuccess(null), 3000);
                     }}
@@ -1261,6 +849,27 @@ export function TemplateList({
                                         选择工作表
                                       </DropdownMenuLabel>
                                       <DropdownMenuSeparator />
+                                      <DropdownMenuItem
+                                        onClick={() => {
+                                          setCurrentTemplateForCreate(template);
+                                          setShowCreateTableDialog(true);
+                                          setShowTableSelectorDropdown(null);
+                                        }}
+                                        className="cursor-pointer py-2 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50"
+                                      >
+                                        <div className="flex-1 min-w-0">
+                                          <div className="flex items-center gap-2">
+                                            <Plus className="h-3 w-3 text-blue-600 flex-shrink-0" />
+                                            <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
+                                              新建工作表
+                                            </span>
+                                          </div>
+                                          <div className="text-xs text-blue-600 dark:text-blue-400 mt-0.5">
+                                            创建新的飞书多维表格工作表
+                                          </div>
+                                        </div>
+                                      </DropdownMenuItem>
+                                      <DropdownMenuSeparator />
                                       {tables.map((t) => (
                                         <DropdownMenuItem
                                           key={t.id}
@@ -1270,6 +879,10 @@ export function TemplateList({
                                                 ? {
                                                     ...temp,
                                                     selectedTableIds: [t.id],
+                                                    tableToSheetMapping: {
+                                                      ...temp.tableToSheetMapping,
+                                                      [t.id]: Object.values(temp.tableToSheetMapping || {})[0] || ''
+                                                    }
                                                   }
                                                 : temp
                                             );
@@ -1284,6 +897,13 @@ export function TemplateList({
                                             setShowTableSelectorDropdown(null);
                                             setShowSaveSuccess(`工作表已更新为 "${t.name}"`);
                                             setTimeout(() => setShowSaveSuccess(null), 3000);
+
+                                            // 自动刷新字段匹配
+                                            const updatedTemplate = updatedTemplates.find((temp) => temp.id === template.id);
+                                            if (updatedTemplate) {
+                                              console.log(`🔄 [选择工作表] 自动刷新字段匹配`);
+                                              refreshFieldMatches(updatedTemplate);
+                                            }
                                           }}
                                           className="cursor-pointer py-2"
                                         >
@@ -1425,7 +1045,8 @@ export function TemplateList({
                                   </span>
                                 )}
                               </div>
-                              {expandedFieldDetails === `${template.id}-${tableId}` && (
+                              {/* 默认展开字段详情 */}
+                              {(expandedFieldDetails === `${template.id}-${tableId}` || true) && (
                                 <div className="mt-2 pt-2 border-t border-purple-200 dark:border-purple-700">
                                   <div className="space-y-2">
                                     <div>
@@ -1536,18 +1157,82 @@ export function TemplateList({
                         // 设置正在同步的状态
                         setTemplateSyncStatus((prev) => ({
                           ...prev,
-                          [template.id]: { success: false, message: '正在同步...' },
+                          [template.id]: { success: false, message: '正在检查字段...' },
                         }));
 
                         try {
-                          // 判断是否是多Sheet Excel
+                          // 检查字段匹配情况
                           const sheetNames = templateSheetNames[template.id] || [];
                           const isMultiSheetExcel =
                             sheetNames.length > 1 &&
                             template.tableToSheetMapping &&
                             Object.keys(template.tableToSheetMapping).length > 0;
 
+                          let needsAddFields = false;
+
                           if (isMultiSheetExcel) {
+                            // 多Sheet模式：检查所有工作表
+                            for (const [tableId, sheetName] of Object.entries(
+                              template.tableToSheetMapping || {}
+                            )) {
+                              if (!sheetName) continue;
+
+                              const matches = template.fieldMatchResults?.[tableId] || [];
+                              const matchedCount = matches.filter((m: any) => m.matched).length;
+                              const unmatchedCount = matches.filter((m: any) => !m.matched).length;
+
+                              console.log(`📊 [同步前检查] 工作表 ${tableId}: 匹配 ${matchedCount}, 未匹配 ${unmatchedCount}`);
+
+                              if (matchedCount === 0 && unmatchedCount > 0) {
+                                needsAddFields = true;
+                                console.log(`⚠️ [同步前检查] 工作表 ${tableId} 匹配字段为0，需要先添加字段`);
+                              }
+                            }
+                          } else {
+                            // 单Sheet模式：检查单个工作表
+                            const tableId = template.selectedTableIds[0];
+                            const matches = template.fieldMatchResults?.[tableId] || [];
+                            const matchedCount = matches.filter((m: any) => m.matched).length;
+                            const unmatchedCount = matches.filter((m: any) => !m.matched).length;
+
+                            console.log(`📊 [同步前检查] 工作表 ${tableId}: 匹配 ${matchedCount}, 未匹配 ${unmatchedCount}`);
+
+                            if (matchedCount === 0 && unmatchedCount > 0) {
+                              needsAddFields = true;
+                              console.log(`⚠️ [同步前检查] 工作表 ${tableId} 匹配字段为0，需要先添加字段`);
+                            }
+                          }
+
+                          // 如果需要添加字段，先添加字段
+                          if (needsAddFields) {
+                            console.log(`➕ [同步前检查] 开始自动添加字段`);
+                            setTemplateSyncStatus((prev) => ({
+                              ...prev,
+                              [template.id]: { success: false, message: '正在添加字段...' },
+                            }));
+
+                            await refreshFieldMatches(template);
+                            
+                            // 等待字段添加完成
+                            await new Promise(resolve => setTimeout(resolve, 3000));
+                            
+                            console.log(`✅ [同步前检查] 字段添加完成，开始同步`);
+                          }
+
+                          // 更新同步状态
+                          setTemplateSyncStatus((prev) => ({
+                            ...prev,
+                            [template.id]: { success: false, message: '正在同步...' },
+                          }));
+
+                          // 判断是否是多Sheet Excel
+                          const sheetNames2 = templateSheetNames[template.id] || [];
+                          const isMultiSheetExcel2 =
+                            sheetNames2.length > 1 &&
+                            template.tableToSheetMapping &&
+                            Object.keys(template.tableToSheetMapping).length > 0;
+
+                          if (isMultiSheetExcel2) {
                             // 多Sheet模式：使用 tableToSheetMapping
                             let successCount = 0;
                             const totalCount = Object.keys(
@@ -1676,6 +1361,14 @@ export function TemplateList({
           );
         })}
       </div>
+
+      {/* 新建工作表对话框 */}
+      <CreateNewTableDialog
+        open={showCreateTableDialog}
+        onOpenChange={setShowCreateTableDialog}
+        onCreateTable={handleCreateNewTable}
+        loading={creatingTable}
+      />
 
       {/* 清除全部模板确认对话框 */}
       <AlertDialog open={showClearAllDialog} onOpenChange={setShowClearAllDialog}>

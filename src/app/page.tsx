@@ -13,7 +13,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
-import { Upload, Download, FileText, CheckCircle, AlertCircle, X, Settings, Save, Table, ChevronRight, Loader2, CheckCircle2, XCircle, ArrowLeft, ArrowRight, Trash2, Copy, FileSpreadsheet, History, Sun, Moon } from 'lucide-react';
+import { Upload, Download, FileText, CheckCircle, AlertCircle, X, Settings, Save, Table, ChevronRight, Loader2, CheckCircle2, XCircle, ArrowLeft, ArrowRight, Trash2, Copy, FileSpreadsheet, History, Sun, Moon, Monitor, Zap, Coffee, Check } from 'lucide-react';
 import { FeishuConfig, SaveTemplateDialog, TemplateList, Step1, Step2, Step3, Step4 } from '@/components';
 import { parseFeishuUrl, formatFileSize } from '@/utils';
 import { STORAGE_KEYS } from '@/constants';
@@ -27,7 +27,7 @@ export default function FileUploadPage() {
   const { appId: feishuAppId, appSecret: feishuAppSecret, setAppId: setFeishuAppId, setAppSecret: setFeishuAppSecret, saveConfig: saveFeishuConfig } = useFeishuConfig();
   const { history: urlHistory, setHistory: setUrlHistory, addToHistory, removeFromHistory } = useUrlHistory();
   const { templates: historyTemplates, setTemplates: setHistoryTemplates, saveTemplate, updateTemplate, deleteTemplate: handleDeleteTemplate, exportTemplates: handleExportTemplates, importTemplates: handleImportTemplates } = useHistoryTemplates();
-  const { theme, toggleTheme } = useTheme();
+  const { theme, themes, toggleTheme, switchTheme } = useTheme();
 
   const [showFeishuConfig, setShowFeishuConfig] = useState(false);
 
@@ -115,6 +115,50 @@ export default function FileUploadPage() {
     }, 0);
   };
 
+  // 刷新工作表列表的函数（供TemplateList组件使用）
+  const handleRefreshTables = async (spreadsheetToken: string) => {
+    console.log('🔄 [刷新工作表] 开始刷新工作表列表');
+    console.log('🔄 [刷新工作表] spreadsheetToken:', spreadsheetToken);
+    
+    setLoadingTables(true);
+    setError('');
+
+    try {
+      const apiUrl = `${window.location.origin}/api/feishu/tables`;
+      const requestBody: any = { token: spreadsheetToken };
+      if (feishuAppId && feishuAppSecret) {
+        requestBody.appId = feishuAppId;
+        requestBody.appSecret = feishuAppSecret;
+      }
+
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      const data = await response.json();
+      
+      if (data.success && data.tables && data.tables.length > 0) {
+        console.log('✅ [刷新工作表] 成功获取工作表，数量:', data.tables.length);
+        setTablesWithLog(data.tables);
+      } else {
+        console.error('❌ [刷新工作表] API 返回错误或无数据:', data);
+        const errorMsg = data.error || '刷新工作表列表失败';
+        setError(errorMsg);
+      }
+    } catch (err) {
+      console.error('❌ [刷新工作表] 请求失败:', err);
+      const errorMsg = err instanceof Error ? err.message : '刷新工作表列表失败';
+      setError(errorMsg);
+    } finally {
+      setLoadingTables(false);
+      console.log('✅ [刷新工作表] 刷新完成');
+    }
+  };
+
   // 组件挂载日志
   useEffect(() => {
     console.log('🚀 [生命周期] 组件已挂载');
@@ -196,11 +240,11 @@ export default function FileUploadPage() {
     
     console.log('🔧 解析的配置:', configToUse);
     
-    if (savedTableId) {
-      // 如果保存了单个工作表ID，将其转换为数组
-      console.log('🔄 [localStorage] 恢复保存的工作表 ID:', savedTableId);
-      setSelectedTableIds([savedTableId]);
-    }
+    // 不再自动恢复保存的工作表 ID，让用户手动选择
+    // if (savedTableId) {
+    //   console.log('🔄 [localStorage] 恢复保存的工作表 ID:', savedTableId);
+    //   setSelectedTableIds([savedTableId]);
+    // }
     
     // 检查是否有历史模版
     const savedTemplates = localStorage.getItem(STORAGE_KEYS.FEISHU_HISTORY_TEMPLATES);
@@ -328,13 +372,13 @@ export default function FileUploadPage() {
             // 清除正在应用的模版标记
             setApplyingTemplate(null);
           } else {
-            // 正常解析链接，自动选中包含"概览"的工作表
-            const overviewTable = data.tables.find((t: FeishuTable) => t.name.includes('概览'));
-            if (overviewTable) {
-              console.log('🎯 [请求 ' + requestId + '] 自动选中概览表:', overviewTable.name);
-              setSelectedTableIds([overviewTable.id]);
-              setDebugInfo((prev: Record<string, any>) => ({ ...prev, autoSelected: overviewTable.name }));
-            }
+            // 正常解析链接，不再自动选中工作表，让用户手动选择
+            // const overviewTable = data.tables.find((t: FeishuTable) => t.name.includes('概览'));
+            // if (overviewTable) {
+            //   console.log('🎯 [请求 ' + requestId + '] 自动选中概览表:', overviewTable.name);
+            //   setSelectedTableIds([overviewTable.id]);
+            //   setDebugInfo((prev: Record<string, any>) => ({ ...prev, autoSelected: overviewTable.name }));
+            // }
           }
           
           setDebugInfo((prev: Record<string, any>) => ({ ...prev, status: 'success', tablesCount: data.tables.length }));
@@ -460,6 +504,7 @@ export default function FileUploadPage() {
       feishuUrl,
       spreadsheetToken: parsedConfig.spreadsheetToken,
       selectedTableIds,
+      selectedTableNames: selectedTableIds.map(id => tables.find(t => t.id === id)?.name || ''),
       tableFields: { ...tableFields },
       fieldMatchResults: { ...tableFieldMatches },
       inputMode,
@@ -526,6 +571,7 @@ export default function FileUploadPage() {
       
       console.log('✅ [历史模版] 模版应用成功，跳转到步骤3');
       setCurrentStep(3);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
       setError('模版中的飞书链接格式无效');
     }
@@ -614,6 +660,128 @@ export default function FileUploadPage() {
         return newMatches;
       });
     }
+  };
+
+  // 全选所有工作表
+  const handleSelectAll = async () => {
+    if (!parsedConfig) {
+      setError('请先输入并解析飞书链接');
+      return;
+    }
+
+    const allTableIds = tables.map(t => t.id);
+    setSelectedTableIds(allTableIds);
+
+    // 获取所有工作表的字段
+    for (const tableId of allTableIds) {
+      await fetchTableFields(tableId);
+    }
+  };
+
+  // 取消所有选择
+  const handleClearSelection = () => {
+    setSelectedTableIds([]);
+    setTableFields({});
+    setTableFieldMatches({});
+  };
+
+  // 从第二步应用历史模版
+  const handleApplyTemplateFromStep2 = async (template: HistoryTemplate) => {
+    if (!parsedConfig) {
+      setError('请先输入并解析飞书链接');
+      return;
+    }
+
+    console.log('🔄 [第二步] 应用历史模版:', template.name);
+    
+    // 创建工作表名称到ID的映射
+    const tableNameToId = new Map<string, string>();
+    tables.forEach(table => {
+      tableNameToId.set(table.name, table.id);
+    });
+    
+    // 通过工作表名称匹配ID
+    const validTableIds: string[] = [];
+    const unmatchedTables: string[] = [];
+    
+    (template.selectedTableIds || []).forEach((tableId, index) => {
+      // 先尝试直接匹配ID
+      if (tables.some(t => t.id === tableId)) {
+        validTableIds.push(tableId);
+        return;
+      }
+      
+      // 如果ID不匹配，尝试通过名称匹配
+      const tableName = template.selectedTableNames?.[index];
+      if (tableName && tableNameToId.has(tableName)) {
+        const matchedId = tableNameToId.get(tableName);
+        if (matchedId && !validTableIds.includes(matchedId)) {
+          validTableIds.push(matchedId);
+          console.log(`✅ [第二步] 通过名称匹配: ${tableName} -> ${matchedId}`);
+        }
+      } else {
+        unmatchedTables.push(tableId);
+      }
+    });
+    
+    if (validTableIds.length === 0) {
+      setError('历史模版中的工作表在当前飞书链接中不存在，无法应用');
+      console.warn('⚠️ [第二步] 历史模版中的工作表ID都不存在');
+      return;
+    }
+    
+    if (unmatchedTables.length > 0) {
+      console.warn(`⚠️ [第二步] 历史模版中的 ${unmatchedTables.length} 个工作表在当前飞书链接中不存在`);
+    }
+    
+    // 恢复工作表选择（只恢复有效的工作表）
+    setSelectedTableIds(validTableIds);
+    
+    // 获取所有选中工作表的字段
+    for (const tableId of validTableIds) {
+      try {
+        await fetchTableFields(tableId);
+      } catch (error) {
+        console.error(`❌ [第二步] 获取工作表 ${tableId} 字段失败:`, error);
+      }
+    }
+
+    // 恢复字段映射（只保留有效的工作表）
+    if (template.fieldMatchResults) {
+      const validFieldMatches: Record<string, FieldMatchResult> = {};
+      for (const [tableId, matchResult] of Object.entries(template.fieldMatchResults)) {
+        if (validTableIds.includes(tableId)) {
+          validFieldMatches[tableId] = matchResult;
+        }
+      }
+      setTableFieldMatches(validFieldMatches);
+    }
+
+    // 恢复子表映射（只保留有效的工作表）
+    if (template.tableToSheetMapping) {
+      const validMapping: Record<string, string> = {};
+      for (const [tableId, sheetName] of Object.entries(template.tableToSheetMapping)) {
+        if (validTableIds.includes(tableId)) {
+          validMapping[tableId] = sheetName;
+        }
+      }
+      setTableToSheetMapping(validMapping);
+    }
+
+    console.log('✅ [第二步] 历史模版应用成功，共应用', validTableIds.length, '个工作表');
+    if (unmatchedTables.length > 0) {
+      console.log('ℹ️ [第二步] 有', unmatchedTables.length, '个工作表未找到匹配');
+    }
+  };
+
+  // 从第二步保存模版
+  const handleSaveTemplateFromStep2 = () => {
+    if (selectedTableIds.length === 0) {
+      setError('请先选择工作表');
+      return;
+    }
+    setTemplateToEdit(null);
+    setShowSaveTemplateModal(true);
   };
 
   // 获取单个工作表的字段
@@ -865,10 +1033,12 @@ export default function FileUploadPage() {
       }
     }
     setCurrentStep((prev: Step) => Math.min(prev + 1, 4) as Step);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const prevStep = () => {
     setCurrentStep((prev: Step) => Math.max(prev - 1, 1) as Step);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   // 处理文件选择
@@ -1300,7 +1470,16 @@ export default function FileUploadPage() {
       tableFields={tableFields}
       loadingTables={loadingTables}
       onToggleTable={handleSelectTable}
-      onSaveTemplate={() => setShowSaveTemplateModal(true)}
+      onSelectAll={handleSelectAll}
+      onClearSelection={handleClearSelection}
+      historyTemplates={historyTemplates}
+      onApplyTemplate={handleApplyTemplateFromStep2}
+      onDeleteTemplate={handleDeleteTemplate}
+      onSaveTemplate={handleSaveTemplateFromStep2}
+      onNextStep={() => {
+        setCurrentStep(3);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }}
     />
   );
 
@@ -1326,18 +1505,41 @@ export default function FileUploadPage() {
           
           {/* 右上角按钮组 */}
           <div className="flex items-center gap-4">
-            {/* 主题切换按钮 */}
-            <button
-              onClick={toggleTheme}
-              className="flex items-center justify-center w-10 h-10 rounded-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-300 shadow-sm"
-              title={theme === 'light' ? '切换到深色模式' : '切换到浅色模式'}
-            >
-              {theme === 'light' ? (
-                <Moon className="h-5 w-5" />
-              ) : (
-                <Sun className="h-5 w-5" />
-              )}
-            </button>
+            {/* 主题选择下拉菜单 */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="rounded-full">
+                  {theme === 'light' && <Sun className="h-5 w-5" />}
+                  {theme === 'dark' && <Moon className="h-5 w-5" />}
+                  {theme === 'system' && <Monitor className="h-5 w-5" />}
+                  {theme === 'highContrast' && <Zap className="h-5 w-5" />}
+                  {theme === 'sepia' && <Coffee className="h-5 w-5" />}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuLabel>选择主题</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {Object.entries(themes).map(([key, config]) => (
+                  <DropdownMenuItem
+                    key={key}
+                    onClick={() => switchTheme(key as any)}
+                    className={theme === key ? 'bg-accent text-accent-foreground' : ''}
+                  >
+                    <div className="flex flex-col items-start">
+                      <span className="text-sm font-medium">{config.name}</span>
+                      {config.description && (
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                          {config.description}
+                        </span>
+                      )}
+                    </div>
+                    {theme === key && (
+                      <Check className="ml-auto h-4 w-4" />
+                    )}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
             
             {/* 飞书配置按钮 */}
             <button
@@ -1444,6 +1646,7 @@ export default function FileUploadPage() {
             setExpandedFieldDetails={setExpandedFieldDetails}
             setShowSaveSuccess={setShowSaveSuccess}
             setDebugInfo={setDebugInfo}
+            onRefreshTables={handleRefreshTables}
           />
         )}
         {currentStep === 2 && renderStep2()}
@@ -1500,6 +1703,7 @@ export default function FileUploadPage() {
         <SaveTemplateDialog
           isOpen={showSaveTemplateModal}
           isStep3={currentStep === 3}
+          isStep2={currentStep === 2}
           templateToEdit={templateToEdit}
           feishuUrl={feishuUrl}
           selectedTableIds={selectedTableIds}

@@ -79,6 +79,7 @@ interface Step1Props {
   setExpandedFieldDetails: React.Dispatch<React.SetStateAction<string | null>>;
   setShowSaveSuccess: React.Dispatch<React.SetStateAction<string | null>>;
   setDebugInfo: React.Dispatch<React.SetStateAction<DebugInfo>>;
+  onRefreshTables?: (spreadsheetToken: string) => Promise<void>;
 }
 
 export function Step1({
@@ -130,9 +131,149 @@ export function Step1({
   setExpandedFieldDetails,
   setShowSaveSuccess,
   setDebugInfo,
+  onRefreshTables,
 }: Step1Props) {
   // 性能监控
   usePerformanceMonitor('Step1');
+
+  // 处理删除历史记录
+  const handleDeleteHistory = (index: number) => {
+    const newHistory = urlHistory.filter((_, i) => i !== index);
+    localStorage.setItem('feishuUrlHistory', JSON.stringify(newHistory));
+    setUrlHistory(newHistory);
+    console.log('🗑️ [历史记录] 已删除历史记录:', urlHistory[index]);
+  };
+
+  // 渲染历史记录列表
+  const renderHistoryList = () => {
+    if (urlHistory.length === 0) {
+      return (
+        <div className="text-center text-gray-500 dark:text-gray-400 py-4">
+          <p className="text-xs">暂无历史记录</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-1">
+        {urlHistory.map((url, idx) => (
+          <div key={idx} className="flex items-center gap-2 group">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => onSelectHistoryUrl(url)}
+              className="flex-1 justify-start text-left text-xs h-7 px-2 truncate"
+              title={url}
+            >
+              {url}
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => handleDeleteHistory(idx)}
+              className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+              title="删除"
+            >
+              <X className="h-3 w-3" />
+            </Button>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  // 渲染调试信息
+  const renderDebugInfo = () => {
+    if (!debugInfo || Object.keys(debugInfo).length === 0) return null;
+
+    return (
+      <div className="p-4 bg-gray-100 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg">
+        <div className="flex items-center gap-2 mb-3">
+          <span className="text-xs font-bold text-gray-900 dark:text-white">
+            🔬 详细调试信息
+          </span>
+          <button
+            onClick={() => setDebugInfo({})}
+            className="text-xs text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+          >
+            清除
+          </button>
+        </div>
+        <div className="text-xs text-gray-700 dark:text-gray-300 space-y-1 font-mono">
+          {debugInfo.requestId && <p>请求ID: {debugInfo.requestId}</p>}
+          {debugInfo.timestamp && <p>时间戳: {debugInfo.timestamp}</p>}
+          {debugInfo.spreadsheetToken && (
+            <>
+              <p>Spreadsheet Token: {debugInfo.spreadsheetToken}</p>
+              <p>Token 类型: {debugInfo.tokenType}</p>
+              <p>Token 长度: {debugInfo.tokenLength}</p>
+            </>
+          )}
+          {debugInfo.apiUrl && (
+            <p className="break-all">API URL: {debugInfo.apiUrl}</p>
+          )}
+          {debugInfo.status && (
+            <p className={debugInfo.status === 'error' ? 'text-red-600 font-bold' : ''}>
+              状态: {debugInfo.status}
+            </p>
+          )}
+          {debugInfo.error && (
+            <p className="text-red-600 font-bold">错误: {debugInfo.error}</p>
+          )}
+          {debugInfo.responseStatus && (
+            <p>响应状态: {debugInfo.responseStatus}</p>
+          )}
+          {debugInfo.tablesCount !== undefined && (
+            <p>工作表数量: {debugInfo.tablesCount}</p>
+          )}
+          {debugInfo.autoSelected && (
+            <p className="text-blue-600">自动选中: {debugInfo.autoSelected}</p>
+          )}
+          {debugInfo.responseData && (
+            <details>
+              <summary className="cursor-pointer hover:text-blue-600">
+                查看完整响应数据
+              </summary>
+              <pre className="mt-2 p-2 bg-gray-200 dark:bg-gray-800 rounded overflow-auto max-h-40">
+                {JSON.stringify(debugInfo.responseData, null, 2)}
+              </pre>
+            </details>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  // 渲染配置完成提示
+  const renderConfigComplete = () => {
+    if (((inputMode === 'file' && selectedFile) ||
+      (inputMode === 'paste' && pastedContent.trim())) &&
+      selectedTableIds.length > 0) {
+      return (
+        <div className="p-4 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <CheckCircle className="h-5 w-5 text-blue-600 mr-2" />
+              <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                ✅ 配置已完成，可以开始上传
+              </p>
+            </div>
+            <Button
+              onClick={() => setShowSaveTemplateModal(true)}
+              variant="outline"
+              size="sm"
+            >
+              <Save className="h-4 w-4 mr-2" />
+              保存为模版
+            </Button>
+          </div>
+        </div>
+      );
+    }
+    return null;
+  };
 
   return (
     <Card className="p-10">
@@ -190,47 +331,7 @@ export function Step1({
             </div>
 
             {/* 历史记录内容 */}
-            {activeTab === 'history' && (
-              <>
-                {urlHistory.length > 0 ? (
-                  <div className="space-y-1">
-                    {urlHistory.map((url, idx) => (
-                      <div key={idx} className="flex items-center gap-2 group">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => onSelectHistoryUrl(url)}
-                          className="flex-1 justify-start text-left text-xs h-7 px-2 truncate"
-                          title={url}
-                        >
-                          {url}
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => {
-                            const newHistory = urlHistory.filter((_, i) => i !== idx);
-                            localStorage.setItem('feishuUrlHistory', JSON.stringify(newHistory));
-                            setUrlHistory(newHistory);
-                            console.log('🗑️ [历史记录] 已删除历史记录:', url);
-                          }}
-                          className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                          title="删除"
-                        >
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center text-gray-500 dark:text-gray-400 py-4">
-                    <p className="text-xs">暂无历史记录</p>
-                  </div>
-                )}
-              </>
-            )}
+            {activeTab === 'history' && renderHistoryList()}
 
             {/* 历史模版内容 */}
             {activeTab === 'template' && (
@@ -265,6 +366,7 @@ export function Step1({
                 showSaveSuccess={showSaveSuccess}
                 setShowSaveSuccess={setShowSaveSuccess}
                 batchUploadProgress={batchUploadProgress}
+                onRefreshTables={onRefreshTables}
               />
             )}
           </div>
@@ -318,63 +420,7 @@ export function Step1({
           </div>
         )}
 
-        {/* 详细调试信息 */}
-        {debugInfo && Object.keys(debugInfo).length > 0 && (
-          <div className="p-4 bg-gray-100 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg">
-            <div className="flex items-center gap-2 mb-3">
-              <span className="text-xs font-bold text-gray-900 dark:text-white">
-                🔬 详细调试信息
-              </span>
-              <button
-                onClick={() => setDebugInfo({})}
-                className="text-xs text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-              >
-                清除
-              </button>
-            </div>
-            <div className="text-xs text-gray-700 dark:text-gray-300 space-y-1 font-mono">
-              {debugInfo.requestId && <p>请求ID: {debugInfo.requestId}</p>}
-              {debugInfo.timestamp && <p>时间戳: {debugInfo.timestamp}</p>}
-              {debugInfo.spreadsheetToken && (
-                <>
-                  <p>Spreadsheet Token: {debugInfo.spreadsheetToken}</p>
-                  <p>Token 类型: {debugInfo.tokenType}</p>
-                  <p>Token 长度: {debugInfo.tokenLength}</p>
-                </>
-              )}
-              {debugInfo.apiUrl && (
-                <p className="break-all">API URL: {debugInfo.apiUrl}</p>
-              )}
-              {debugInfo.status && (
-                <p className={debugInfo.status === 'error' ? 'text-red-600 font-bold' : ''}>
-                  状态: {debugInfo.status}
-                </p>
-              )}
-              {debugInfo.error && (
-                <p className="text-red-600 font-bold">错误: {debugInfo.error}</p>
-              )}
-              {debugInfo.responseStatus && (
-                <p>响应状态: {debugInfo.responseStatus}</p>
-              )}
-              {debugInfo.tablesCount !== undefined && (
-                <p>工作表数量: {debugInfo.tablesCount}</p>
-              )}
-              {debugInfo.autoSelected && (
-                <p className="text-blue-600">自动选中: {debugInfo.autoSelected}</p>
-              )}
-              {debugInfo.responseData && (
-                <details>
-                  <summary className="cursor-pointer hover:text-blue-600">
-                    查看完整响应数据
-                  </summary>
-                  <pre className="mt-2 p-2 bg-gray-200 dark:bg-gray-800 rounded overflow-auto max-h-40">
-                    {JSON.stringify(debugInfo.responseData, null, 2)}
-                  </pre>
-                </details>
-              )}
-            </div>
-          </div>
-        )}
+        {renderDebugInfo()}
 
         {error && (
           <div className="p-4 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-lg">
@@ -385,29 +431,7 @@ export function Step1({
           </div>
         )}
 
-        {/* 配置完成提示 */}
-        {((inputMode === 'file' && selectedFile) ||
-          (inputMode === 'paste' && pastedContent.trim())) &&
-          selectedTableIds.length > 0 && (
-            <div className="p-4 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <CheckCircle className="h-5 w-5 text-blue-600 mr-2" />
-                  <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
-                    ✅ 配置已完成，可以开始上传
-                  </p>
-                </div>
-                <Button
-                  onClick={() => setShowSaveTemplateModal(true)}
-                  variant="outline"
-                  size="sm"
-                >
-                  <Save className="h-4 w-4 mr-2" />
-                  保存为模版
-                </Button>
-              </div>
-            </div>
-          )}
+        {renderConfigComplete()}
       </div>
     </Card>
   );

@@ -1,31 +1,101 @@
 import { useState, useEffect } from 'react';
 
-type Theme = 'light' | 'dark';
+type Theme = 'light' | 'dark' | 'system' | 'highContrast' | 'sepia';
+
+export interface ThemeConfig {
+  name: string;
+  isDefault: boolean;
+  description?: string;
+  icon?: string;
+}
 
 export function useTheme() {
   const [theme, setTheme] = useState<Theme>('light');
+  
+  const themes: Record<Theme, ThemeConfig> = {
+    light: {
+      name: '浅色模式',
+      isDefault: true,
+      description: '明亮清晰，适合日间使用',
+      icon: 'sun'
+    },
+    dark: {
+      name: '深色模式',
+      isDefault: true,
+      description: '护眼舒适，适合夜间使用',
+      icon: 'moon'
+    },
+    system: {
+      name: '跟随系统',
+      isDefault: true,
+      description: '自动跟随系统主题设置',
+      icon: 'monitor'
+    },
+    highContrast: {
+      name: '高对比度',
+      isDefault: false,
+      description: '增强可读性，适合视力障碍用户',
+      icon: 'zap'
+    },
+    sepia: {
+      name: '护眼模式',
+      isDefault: false,
+      description: '温暖色调，减少眼部疲劳',
+      icon: 'coffee'
+    }
+  };
 
   useEffect(() => {
     // 从localStorage加载主题
     const savedTheme = localStorage.getItem('theme') as Theme | null;
     if (savedTheme) {
       setTheme(savedTheme);
-      document.documentElement.classList.toggle('dark', savedTheme === 'dark');
+      applyTheme(savedTheme);
     } else {
       // 检测系统主题偏好
       const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      const initialTheme = prefersDark ? 'dark' : 'light';
+      const initialTheme: Theme = 'system';
       setTheme(initialTheme);
-      document.documentElement.classList.toggle('dark', initialTheme === 'dark');
+      applyTheme(initialTheme);
     }
   }, []);
 
+  const applyTheme = (themeName: Theme) => {
+    const root = document.documentElement;
+    
+    // 移除所有主题类
+    root.classList.remove('dark', 'high-contrast', 'sepia');
+    
+    // 应用新主题
+    if (themeName === 'system') {
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      root.classList.toggle('dark', prefersDark);
+    } else if (themeName === 'light') {
+      // light 模式不需要任何类
+    } else if (themeName === 'dark') {
+      root.classList.add('dark');
+    } else if (themeName === 'highContrast') {
+      root.classList.add('dark', 'high-contrast');
+    } else if (themeName === 'sepia') {
+      root.classList.add('sepia');
+    }
+  };
+
   const toggleTheme = () => {
-    const newTheme = theme === 'light' ? 'dark' : 'light';
+    const themeOrder: Theme[] = ['light', 'dark', 'system'];
+    const currentIndex = themeOrder.indexOf(theme);
+    const nextIndex = (currentIndex + 1) % themeOrder.length;
+    const newTheme = themeOrder[nextIndex];
     setTheme(newTheme);
-    document.documentElement.classList.toggle('dark', newTheme === 'dark');
+    applyTheme(newTheme);
     localStorage.setItem('theme', newTheme);
   };
 
-  return { theme, toggleTheme };
+  const switchTheme = (themeName: Theme) => {
+    setTheme(themeName);
+    applyTheme(themeName);
+    localStorage.setItem('theme', themeName);
+  };
+
+  return { theme, themes, toggleTheme, switchTheme };
 }

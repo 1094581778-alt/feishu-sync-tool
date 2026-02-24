@@ -32,15 +32,16 @@ const FEISHU_FIELD_TYPES = {
   multiSelect: 4,     // 多选
   date: 5,           // 日期
   checkbox: 7,        // 复选框
-  url: 13,           // 超链接
+  person: 11,        // 人员
+  group: 12,          // 群组
+  phone: 13,         // 电话号码
+  url: 15,           // 超链接
   email: 14,          // 邮箱
-  phone: 15,         // 电话号码
   currency: 16,       // 货币
   percent: 17,        // 百分比
   rating: 18,        // 评分
   datetime: 19,       // 日期时间
   user: 20,          // 人员
-  group: 21,          // 群组
   attachment: 22,      // 附件
   lookup: 23,         // 查找引用
   formula: 24,        // 公式

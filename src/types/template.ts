@@ -9,6 +9,7 @@ export interface HistoryTemplate {
   feishuUrl?: string;
   spreadsheetToken: string;
   selectedTableIds: string[];
+  selectedTableNames?: string[];
   tableToSheetMapping?: Record<string, string>;
   tableFields?: Record<string, any[]>;
   fieldMatchResults?: Record<string, any[]>;

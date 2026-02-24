@@ -12,6 +12,7 @@ interface FeishuTable {
 interface SaveTemplateDialogProps {
   isOpen: boolean;
   isStep3: boolean;
+  isStep2?: boolean;
   templateToEdit: any;
   feishuUrl: string;
   selectedTableIds: string[];
@@ -26,6 +27,7 @@ interface SaveTemplateDialogProps {
 export function SaveTemplateDialog({
   isOpen,
   isStep3,
+  isStep2,
   templateToEdit,
   feishuUrl,
   selectedTableIds,
@@ -46,7 +48,7 @@ export function SaveTemplateDialog({
         <div className="p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-              {templateToEdit ? '编辑模版' : (isStep3 ? '保存子表配置' : '保存为历史模版')}
+              {templateToEdit ? '编辑模版' : (isStep3 ? '保存子表配置' : (isStep2 ? '保存为历史模版' : '保存为历史模版'))}
             </h2>
             <Button variant="ghost" size="sm" onClick={onClose}>
               <X className="h-4 w-4" />
@@ -61,7 +63,7 @@ export function SaveTemplateDialog({
               <Input
                 id="template-name"
                 type="text"
-                placeholder={isStep3 ? '例如：产品表-订单表配置' : '例如：每周销售数据上传模版'}
+                placeholder={isStep3 ? '例如：产品表-订单表配置' : (isStep2 ? '例如：每周销售数据工作表选择' : '例如：每周销售数据上传模版')}
                 className="w-full"
                 autoFocus
               />
@@ -73,7 +75,7 @@ export function SaveTemplateDialog({
               </Label>
               <textarea
                 id="template-remark"
-                placeholder={isStep3 ? '例如：用于批量上传产品和订单数据' : '例如：用于每周上传销售数据到飞书多维表格'}
+                placeholder={isStep3 ? '例如：用于批量上传产品和订单数据' : (isStep2 ? '例如：用于每周上传销售数据' : '例如：用于每周上传销售数据到飞书多维表格')}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white text-sm"
                 rows={3}
               />
@@ -108,7 +110,7 @@ export function SaveTemplateDialog({
                 </div>
               </div>
             ) : (
-              // 步骤2：显示完整配置概览
+              // 步骤2：显示工作表选择详情
               <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-md">
                 <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">
                   📋 模版将包含以下配置：
@@ -116,6 +118,9 @@ export function SaveTemplateDialog({
                 <ul className="text-xs text-gray-600 dark:text-gray-400 space-y-0.5 ml-4 list-disc">
                   <li>飞书链接：{feishuUrl.slice(0, 30)}...</li>
                   <li>选中工作表：{selectedTableIds.length} 个</li>
+                  {selectedTableIds.length > 0 && (
+                    <li>工作表列表：{selectedTableIds.slice(0, 3).map(id => tables.find(t => t.id === id)?.name || '未知').join(', ')}{selectedTableIds.length > 3 ? '...' : ''}</li>
+                  )}
                   <li>输入方式：{inputMode === 'file' ? '文件上传' : '粘贴内容'}</li>
                   <li>字段映射：已保存</li>
                   {sheetMappingCount > 0 && <li>子表映射：{sheetMappingCount} 个配置</li>}
