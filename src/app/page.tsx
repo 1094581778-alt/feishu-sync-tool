@@ -748,7 +748,7 @@ export default function FileUploadPage() {
 
     // 恢复字段映射（只保留有效的工作表）
     if (template.fieldMatchResults) {
-      const validFieldMatches: Record<string, FieldMatchResult> = {};
+      const validFieldMatches: Record<string, FieldMatchResult[]> = {};
       for (const [tableId, matchResult] of Object.entries(template.fieldMatchResults)) {
         if (validTableIds.includes(tableId)) {
           validFieldMatches[tableId] = matchResult;
