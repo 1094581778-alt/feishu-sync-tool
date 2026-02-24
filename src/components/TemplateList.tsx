@@ -271,15 +271,15 @@ export function TemplateList({
 
     if (!file) {
       console.error(`❌ [历史模版] 模版 "${template.name}" 没有上传文件`);
-      setShowSaveSuccess('❌ 请先上传Excel文件');
-      setTimeout(() => setShowSaveSuccess(null), 3000);
+      setShowSaveSuccess('⚠️ 请先上传Excel文件后再刷新字段匹配');
+      setTimeout(() => setShowSaveSuccess(null), 5000);
       return;
     }
 
     if (!template.tableToSheetMapping || Object.keys(template.tableToSheetMapping).length === 0) {
       console.error(`❌ [历史模版] 模版 "${template.name}" 没有配置Sheet映射`);
-      setShowSaveSuccess('❌ 请先配置Sheet映射');
-      setTimeout(() => setShowSaveSuccess(null), 3000);
+      setShowSaveSuccess('⚠️ 请先配置Sheet映射后再刷新字段匹配');
+      setTimeout(() => setShowSaveSuccess(null), 5000);
       return;
     }
 
