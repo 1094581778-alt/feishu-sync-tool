@@ -14,8 +14,7 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  // 配置输出目录
-  distDir: '.next',
+  output: 'standalone',
 };
 
 export default nextConfig;
