@@ -16,10 +16,6 @@ const nextConfig: NextConfig = {
   },
   // 配置输出目录
   distDir: '.next',
-  // 禁用遥测
-  telemetry: {
-    enabled: false,
-  },
 };
 
 export default nextConfig;
