@@ -518,7 +518,7 @@ export function Step2({
               </div>
               <Button
                 onClick={onNextStep}
-                size="xl"
+                size="lg"
                 className="h-16 px-10 bg-white text-emerald-600 hover:bg-gray-50 hover:shadow-2xl hover:scale-105 transition-all duration-300 font-black text-xl rounded-2xl"
               >
                 下一步
