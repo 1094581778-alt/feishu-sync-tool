@@ -1,0 +1,10 @@
+# Cloudflare Pages 配置
+
+# 构建配置
+pages_build_output_dir = ".next"
+
+# 项目名称
+name = "feishu-sync-tool"
+
+# 兼容性日期
+compatibility_date = "2026-02-24"
