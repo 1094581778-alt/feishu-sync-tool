@@ -1,0 +1,7 @@
+{
+  "name": "feishu-sync-tool",
+  "compatibility_date": "2026-02-24",
+  "assets": {
+    "directory": ".next"
+  }
+}
