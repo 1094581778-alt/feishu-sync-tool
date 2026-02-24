@@ -2,6 +2,8 @@
  * 历史模版类型定义
  */
 
+import type { FieldMatchResult } from './feishu';
+
 export interface HistoryTemplate {
   id: string;
   name: string;
@@ -12,7 +14,7 @@ export interface HistoryTemplate {
   selectedTableNames?: string[];
   tableToSheetMapping?: Record<string, string>;
   tableFields?: Record<string, any[]>;
-  fieldMatchResults?: Record<string, any[]>;
+  fieldMatchResults?: Record<string, FieldMatchResult[]>;
   inputMode?: 'file' | 'paste';
   pastedContent?: string;
   filePath?: string;
