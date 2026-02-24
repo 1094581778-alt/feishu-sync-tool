@@ -433,7 +433,7 @@ export function TemplateList({
 
             // 重新获取jsonData用于字段类型检测
             let jsonData: Record<string, any>[] = [];
-            const sheetName = template.tableToSheetMapping?.[tableId];
+            const sheetName: string | undefined = template.tableToSheetMapping?.[tableId];
             if (sheetName) {
               // 大小写不敏感查找工作表
               const actualSheetName = workbook.SheetNames.find(
