@@ -337,7 +337,7 @@ export function TemplateList({
       const newFieldMatches: Record<string, FieldMatchResult[]> = {};
 
       for (const tableId of template.selectedTableIds) {
-        const sheetName = template.tableToSheetMapping[tableId];
+        const sheetName = template.tableToSheetMapping?.[tableId];
         console.log(`🔍 [历史模版] 检查表 ${tableId} -> Sheet: ${sheetName}`);
 
         // 大小写不敏感查找工作表
@@ -430,6 +430,23 @@ export function TemplateList({
             let successCount = 0;
             let failedFields: string[] = [];
             let skippedFields: string[] = [];
+
+            // 重新获取jsonData用于字段类型检测
+            let jsonData: Record<string, any>[] = [];
+            const sheetName = template.tableToSheetMapping?.[tableId];
+            if (sheetName) {
+              // 大小写不敏感查找工作表
+              const actualSheetName = workbook.SheetNames.find(
+                (name) => name.toLowerCase() === sheetName.toLowerCase()
+              ) || sheetName;
+              
+              if (workbook.Sheets[actualSheetName]) {
+                jsonData = XLSX.utils.sheet_to_json<Record<string, any>>(
+                  workbook.Sheets[actualSheetName], 
+                  { raw: false }
+                );
+              }
+            }
 
             for (const field of unmatchedFields) {
               try {
