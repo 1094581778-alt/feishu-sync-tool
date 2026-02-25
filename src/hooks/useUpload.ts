@@ -3,7 +3,7 @@
  */
 
 import { useState, useCallback } from 'react';
-import { logger, LOG_CATEGORIES } from '../utils/logger';
+import { logger, LOG_CATEGORIES, OperationType, OperationResult, ErrorType } from '../utils/logger';
 import { handleApiError } from '../utils/errorHandler';
 import { performanceMonitor } from '../utils/performance';
 import { validateFileSize, validateFileType } from '../config/app';
@@ -147,9 +147,26 @@ export function useUpload(): UseUploadResult {
     setUploadStatus('syncing');
     setError(null);
 
+    const operationId = logger.generateOperationId ? logger.generateOperationId() : `sync_${Date.now()}`;
+    const startTime = new Date().toISOString();
+    
     try {
-      logger.info(LOG_CATEGORIES.FEISHU, '开始同步数据到飞书', {
-        tableCount: Object.keys(tableConfigs).length,
+      logger.logSyncOperation({
+        operationId,
+        operationType: OperationType.SYNC_INIT,
+        operationResult: OperationResult.SUCCESS,
+        module: 'FEISHU_SYNC',
+        startTime,
+        endTime: startTime,
+        durationMs: 0,
+        message: '开始同步数据到飞书',
+        data: {
+          tableCount: Object.keys(tableConfigs).length,
+          spreadsheetToken: spreadsheetToken ? '***MASKED***' : undefined,
+        },
+        context: {
+          userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'server',
+        },
       });
 
       return await performanceMonitor.measure(

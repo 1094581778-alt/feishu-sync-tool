@@ -77,7 +77,7 @@ export function FeishuConfig({ onSave, onClose }: FeishuConfigProps) {
                 className="font-mono text-sm"
               />
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                示例：cli_a90a9d996078dbd9
+                示例：cli_xxxxxxxxxxxxxxxx
               </p>
             </div>
 

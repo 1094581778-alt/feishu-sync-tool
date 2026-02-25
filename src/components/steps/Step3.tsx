@@ -41,6 +41,7 @@ interface Step3Props {
   historyTemplates: HistoryTemplate[];
   handleDeleteTemplate: (templateId: string) => void;
   applySheetMappingFromTemplate: (template: HistoryTemplate) => void;
+  developerMode: boolean;
 }
 
 export function Step3({
@@ -70,6 +71,7 @@ export function Step3({
   historyTemplates,
   handleDeleteTemplate,
   applySheetMappingFromTemplate,
+  developerMode,
 }: Step3Props) {
   // 性能监控
   usePerformanceMonitor('Step3');
@@ -77,35 +79,35 @@ export function Step3({
   const selectedTables = tables.filter(t => selectedTableIds.includes(t.id));
 
   return (
-    <Card className="p-10">
-      <div className="space-y-8">
+    <Card className="p-8 sm:p-10">
+      <div className="space-y-6">
         <div>
-          <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-3">
-            【步骤 3/4】选择输入方式
+          <h2 className="text-2xl sm:text-3xl font-bold text-foreground mb-3">
+            步骤 3/4：选择输入方式
           </h2>
-          <p className="text-base text-gray-600 dark:text-gray-400">
+          <p className="text-base text-muted-foreground">
             请选择您想要上传的内容方式：上传文件或粘贴内容
           </p>
         </div>
 
         {/* 选项卡切换 */}
-        <div className="flex gap-3 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex gap-2 border-b border-gray-200 dark:border-gray-700">
           <button
             onClick={() => setInputMode('file')}
-            className={`px-8 py-4 font-medium text-base transition-colors ${
+            className={`px-4 py-3 font-medium text-sm transition-colors ${
               inputMode === 'file'
-                ? 'text-blue-600 border-b-2 border-blue-600'
-                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                ? 'text-primary border-b-2 border-primary'
+                : 'text-muted-foreground hover:text-foreground'
             }`}
           >
             📄 上传文件
           </button>
           <button
             onClick={() => setInputMode('paste')}
-            className={`px-8 py-4 font-medium text-base transition-colors ${
+            className={`px-4 py-3 font-medium text-sm transition-colors ${
               inputMode === 'paste'
-                ? 'text-blue-600 border-b-2 border-blue-600'
-                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                ? 'text-primary border-b-2 border-primary'
+                : 'text-muted-foreground hover:text-foreground'
             }`}
           >
             📋 粘贴内容
@@ -113,15 +115,15 @@ export function Step3({
         </div>
 
         {/* 智能字段映射提示 */}
-        <div className="p-5 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg">
-          <div className="flex items-center justify-between mb-4">
+        <div className="p-4 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
             <div className="flex items-center gap-2">
               <Settings className="h-5 w-5 text-blue-600" />
               <h3 className="text-sm font-medium text-blue-900 dark:text-blue-100">
                 智能字段映射
               </h3>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               {/* 保存子表按钮 */}
               {selectedTables.length > 0 && Object.keys(tableToSheetMapping).length > 0 && selectedFile && (
                 <Button
@@ -130,9 +132,9 @@ export function Step3({
                   }}
                   variant="outline"
                   size="sm"
-                  className="h-7 text-xs border-green-300 dark:border-green-700 text-green-700 dark:text-green-300 hover:bg-green-50 dark:hover:bg-green-950"
+                  className="border-green-300 dark:border-green-700 text-green-700 dark:text-green-300 hover:bg-green-50 dark:hover:bg-green-950"
                 >
-                  <Save className="h-3 w-3 mr-1" />
+                  <Save className="h-4 w-4 mr-1" />
                   保存子表
                 </Button>
               )}
@@ -143,14 +145,14 @@ export function Step3({
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-7 text-xs border-purple-300 dark:border-purple-700 text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950"
+                      className="border-purple-300 dark:border-purple-700 text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950"
                     >
-                      <History className="h-3 w-3 mr-1" />
+                      <History className="h-4 w-4 mr-1" />
                       历史子表选项
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-72 max-h-80 overflow-y-auto">
-                    <DropdownMenuLabel className="text-xs font-medium">
+                  <DropdownMenuContent align="end" className="w-64 max-h-[300px] overflow-y-auto">
+                    <DropdownMenuLabel className="text-sm font-medium">
                       选择历史模版的子表配置
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator />
@@ -165,15 +167,19 @@ export function Step3({
                             onClick={() => applySheetMappingFromTemplate(template)}
                           >
                             <div className="flex items-center gap-2 mb-1">
-                              <FileSpreadsheet className="h-3 w-3 text-purple-600 flex-shrink-0" />
-                              <span className="text-sm font-medium text-gray-900 dark:text-white">
+                              <FileSpreadsheet className="h-4 w-4 text-purple-600 flex-shrink-0" />
+                              <span className="text-sm font-medium text-foreground truncate">
                                 {template.name}
                               </span>
                             </div>
-                            <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
                               <span>{sheetMappingCount} 个子表配置</span>
-                              <span>•</span>
-                              <span className="truncate max-w-[100px]">{template.remark || '无备注'}</span>
+                              {template.remark && (
+                                <>
+                                  <span className="w-1 h-1 bg-muted-foreground rounded-full"></span>
+                                  <span className="truncate max-w-[100px]">{template.remark || '无备注'}</span>
+                                </>
+                              )}
                             </div>
                           </div>
                           <Button
@@ -187,13 +193,13 @@ export function Step3({
                               }
                             }}
                           >
-                            <Trash2 className="h-3 w-3" />
+                            <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
                       );
                     })}
                     {historyTemplates.length === 0 && (
-                      <div className="px-2 py-3 text-xs text-gray-500 dark:text-gray-400 text-center">
+                      <div className="px-2 py-3 text-xs text-muted-foreground text-center">
                         暂无历史模版
                       </div>
                     )}
@@ -207,17 +213,16 @@ export function Step3({
                   }}
                   variant="outline"
                   size="sm"
-                  className="h-7 text-xs"
                   disabled={loadingFields}
                 >
                   {loadingFields ? (
                     <>
-                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                      <Loader2 className="h-4 w-4 mr-1 animate-spin" />
                       同步中...
                     </>
                   ) : (
                     <>
-                      <FileSpreadsheet className="h-3 w-3 mr-1" />
+                      <FileSpreadsheet className="h-4 w-4 mr-1" />
                       同步所有字段
                     </>
                   )}
@@ -225,10 +230,10 @@ export function Step3({
               )}
             </div>
           </div>
-          <p className="text-xs text-blue-800 dark:text-blue-200 mb-3">
+          <p className="text-sm text-blue-800 dark:text-blue-200 mb-3">
             系统将根据字段名称自动匹配以下数据项：
           </p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 text-sm">
             <div className="flex items-center gap-2">
               <span className="text-blue-600">📄</span>
               <span className="text-blue-900 dark:text-blue-100">文件名</span>
@@ -258,14 +263,14 @@ export function Step3({
           
           {/* 已选工作表列表和字段匹配 */}
           {selectedTableIds.length > 0 && (
-            <div className="mt-3 pt-3 border-t border-blue-200 dark:border-blue-800">
-              <div className="mb-2">
-                <p className="text-xs text-blue-800 dark:text-blue-200">
+            <div className="mt-4 pt-4 border-t border-blue-200 dark:border-blue-800">
+              <div className="mb-3">
+                <p className="text-sm text-blue-800 dark:text-blue-200">
                   已选工作表（{selectedTableIds.length} 个）及字段匹配：
                 </p>
               </div>
               
-              <div className="space-y-3 max-h-[600px] overflow-y-auto">
+              <div className="space-y-4 max-h-[500px] overflow-y-auto">
                 {selectedTableIds.map(tableId => {
                   const table = tables.find(t => t.id === tableId);
                   const matches = tableFieldMatches[tableId] || [];
@@ -277,20 +282,22 @@ export function Step3({
                   return (
                     <div 
                       key={tableId} 
-                      className={`p-3 border rounded-lg ${hasSheetSelected 
-                        ? 'bg-white dark:bg-gray-900 border-blue-200 dark:border-blue-800' 
-                        : 'bg-red-50 dark:bg-red-950 border-red-300 dark:border-red-700'}`}
+                      className={`p-4 border rounded-lg ${hasSheetSelected 
+                        ? 'bg-gray-50 dark:bg-gray-800 border-0' 
+                        : 'bg-gray-50 dark:bg-gray-800 border-0'}`}
                     >
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <FileSpreadsheet className={`h-4 w-4 ${hasSheetSelected ? 'text-blue-600' : 'text-red-600'}`} />
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+                        <div className="flex items-center gap-3">
+                          <FileSpreadsheet className={`h-5 w-5 ${hasSheetSelected ? 'text-blue-600' : 'text-red-600'}`} />
                           <div className="flex flex-col">
-                            <p className={`text-sm font-medium ${hasSheetSelected ? 'text-gray-900 dark:text-white' : 'text-red-900 dark:text-red-100'}`}>
+                            <p className={`text-sm font-medium ${hasSheetSelected ? 'text-foreground' : 'text-red-900 dark:text-red-100'}`}>
                               {table?.name || tableId}
                             </p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">
-                              ID: {tableId}
-                            </p>
+                            {developerMode && (
+                              <p className="text-xs text-muted-foreground">
+                                ID: {tableId}
+                              </p>
+                            )}
                           </div>
                           {!hasSheetSelected && (
                             <span className="px-2 py-0.5 text-xs bg-red-200 dark:bg-red-800 text-red-900 dark:text-red-100 rounded-full">
@@ -298,7 +305,7 @@ export function Step3({
                             </span>
                           )}
                         </div>
-                        <div className="flex items-center gap-2 text-xs">
+                        <div className="flex items-center gap-3 text-xs">
                           <span className="flex items-center gap-1 text-green-600">
                             <span className="w-2 h-2 rounded-full bg-green-500"></span>
                             {matchedCount}
@@ -312,7 +319,7 @@ export function Step3({
                       
                       {/* Excel Sheet选择下拉框 */}
                       {excelSheetNames.length > 0 && (
-                        <div className="mb-2">
+                        <div className="mb-3">
                           <select
                             value={selectedSheet}
                             onChange={async (e) => {
@@ -326,10 +333,10 @@ export function Step3({
                                 await analyzeFieldMatchingForTable(selectedFile, tableId, sheetName);
                               }
                             }}
-                            className={`w-full px-2 py-1 text-xs border rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 ${
+                            className={`w-full px-3 py-2 text-sm border-0 rounded-xl bg-gray-50 dark:bg-gray-800 text-foreground focus:ring-2 focus:ring-primary ${
                               hasSheetSelected
-                                ? 'border-purple-300 dark:border-purple-700 focus:ring-purple-500'
-                                : 'border-red-300 dark:border-red-700 focus:ring-red-500'
+                                ? 'ring-2 ring-purple-500'
+                                : 'ring-2 ring-red-500'
                             }`}
                           >
                             <option value="">选择Excel工作表（Sheet）...</option>
@@ -366,8 +373,8 @@ export function Step3({
                       {matches.length > 0 && (
                         <>
                           {/* 显示控制按钮 */}
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="text-xs text-gray-600 dark:text-gray-400">
+                          <div className="flex items-center justify-between mb-3">
+                            <span className="text-sm text-muted-foreground">
                               {totalCount - matchedCount > 0 ? (
                                 <span className="text-red-600 font-medium">
                                   {totalCount - matchedCount} 个字段未匹配
@@ -380,28 +387,28 @@ export function Step3({
                             </span>
                             <button
                               onClick={() => setShowAllFields(prev => ({ ...prev, [tableId]: !prev[tableId] }))}
-                              className="text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                              className="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
                             >
                               {showAllFields[tableId] ? '只显示未匹配' : '显示全部'}
                             </button>
                           </div>
                           
                           {/* 显示飞书实际字段列表（帮助调试） */}
-                          {tableFields[tableId] && tableFields[tableId].length > 0 && (
-                            <div className="mt-2 p-2 bg-gray-50 dark:bg-gray-800 rounded">
-                              <div className="flex items-center justify-between mb-1">
-                                <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                          {developerMode && tableFields[tableId] && tableFields[tableId].length > 0 && (
+                            <div className="mt-3 p-3 bg-gray-50 dark:bg-gray-800 rounded">
+                              <div className="flex items-center justify-between mb-2">
+                                <span className="text-sm font-medium text-muted-foreground">
                                   飞书表格字段列表（共 {tableFields[tableId].length} 个）：
                                 </span>
                               </div>
-                              <div className="text-xs text-gray-600 dark:text-gray-400 flex flex-wrap gap-1">
+                              <div className="text-xs text-muted-foreground flex flex-wrap gap-1">
                                 {tableFields[tableId].map(f => {
                                   const fieldName = f.name || f.field_name || f.id;
                                   const isMatched = matches.some(m => m.feishuField === fieldName || m.feishuField === f.id);
                                   return (
                                     <span
                                       key={f.id}
-                                      className={`px-2 py-0.5 rounded text-xs font-medium ${
+                                      className={`px-2 py-1 rounded text-xs font-medium ${
                                         isMatched
                                           ? 'bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200 border border-green-300 dark:border-green-700'
                                           : 'bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-200 border border-red-300 dark:border-red-700'
@@ -416,13 +423,13 @@ export function Step3({
                           )}
                           
                           {/* 字段匹配列表 */}
-                          <div className="space-y-1 max-h-[300px] overflow-y-auto">
+                          <div className="space-y-2 max-h-[300px] overflow-y-auto">
                             {(showAllFields[tableId] ? matches : matches.filter(r => !r.matched)).map((result, idx) => {
                               const originalIdx = matches.indexOf(result);
                               return (
                                 <div
                                   key={originalIdx}
-                                  className={`flex items-center justify-between p-2 rounded text-xs ${
+                                  className={`flex items-center justify-between p-3 rounded text-sm ${
                                     result.matched
                                       ? 'bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200 border-l-4 border-green-500'
                                       : 'bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-200 border-l-4 border-red-500'
@@ -431,18 +438,18 @@ export function Step3({
                                   <div className="flex-1">
                                     <span className="font-medium">{result.excelField}</span>
                                     {result.feishuField && result.similarity !== undefined && (
-                                      <span className="ml-2 text-gray-600 dark:text-gray-400">
+                                      <span className="ml-2 text-muted-foreground">
                                         → {result.feishuField}
                                       </span>
                                     )}
                                   </div>
-                                  <div className="flex items-center gap-2">
-                                    {result.similarity !== undefined && (
-                                      <span className="text-xs text-gray-600 dark:text-gray-400">
+                                  <div className="flex items-center gap-3">
+                                    {developerMode && result.similarity !== undefined && (
+                                      <span className="text-xs text-muted-foreground">
                                         {result.matched ? `${(result.similarity * 100).toFixed(0)}%` : `${(result.similarity * 100).toFixed(0)}%`}
                                       </span>
                                     )}
-                                    <span className={`flex-shrink-0 px-2 py-0.5 rounded-full text-xs font-bold ${
+                                    <span className={`flex-shrink-0 px-3 py-1 rounded-full text-xs font-bold ${
                                       result.matched
                                         ? 'bg-green-500 text-white'
                                         : 'bg-red-500 text-white'
@@ -455,7 +462,7 @@ export function Step3({
                             })}
                             
                             {!(showAllFields[tableId] ? matches : matches.filter(r => !r.matched)).length && (
-                              <p className="text-xs text-green-600 dark:text-green-400 text-center py-2">
+                              <p className="text-sm text-green-600 dark:text-green-400 text-center py-3">
                                 {showAllFields[tableId] ? '没有字段数据' : '所有字段均已匹配！'}
                               </p>
                             )}
@@ -467,11 +474,11 @@ export function Step3({
                             const lowerName = fieldName.toLowerCase();
                             return lowerName.includes('日期') || lowerName.includes('date') || lowerName.includes('时间') || lowerName.includes('time');
                           }) && (
-                            <div className="mt-2 p-2 bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded">
-                              <p className="text-xs font-medium text-amber-900 dark:text-amber-100 mb-1">
+                            <div className="mt-3 p-3 bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded">
+                              <p className="text-sm font-medium text-amber-900 dark:text-amber-100 mb-2">
                                 📅 日期字段格式支持：
                               </p>
-                              <div className="text-xs text-amber-700 dark:text-amber-300 space-y-0.5">
+                              <div className="text-sm text-amber-700 dark:text-amber-300 space-y-1">
                                 <p>• 标准格式：2026-02-03、2026/02/03</p>
                                 <p>• 紧凑格式：20260203（自动转换为 2026-02-03）</p>
                                 <p>• 时间格式：202602031230（自动转换为 2026-02-03 12:30）</p>
@@ -483,7 +490,7 @@ export function Step3({
                       )}
                       
                       {matches.length === 0 && (
-                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                        <p className="text-sm text-muted-foreground">
                           {selectedFile ? '等待选择Sheet后分析...' : '等待选择文件后分析...'}
                         </p>
                       )}
@@ -498,25 +505,25 @@ export function Step3({
         {/* 上传文件区域 */}
         {inputMode === 'file' && (
           <div>
-            <Label className="text-sm font-medium mb-2 block">
-              📄 上传文件区域
+            <Label className="text-sm font-medium mb-3 block">
+              上传文件
             </Label>
             <div
               onDrop={handleDrop}
               onDragOver={handleDragOver}
-              className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors ${
+              className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
                 selectedFile
-                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-950'
-                  : 'border-gray-300 dark:border-gray-700 hover:border-blue-400 dark:hover:border-blue-600'
+                  ? 'border-primary bg-primary/5 dark:bg-primary/10'
+                  : 'border-gray-300 dark:border-gray-700 hover:border-primary dark:hover:border-primary'
               }`}
             >
               {!selectedFile ? (
                 <>
-                  <Upload className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                  <p className="text-sm font-medium text-gray-900 dark:text-white mb-4">
+                  <Upload className="mx-auto h-10 w-10 text-muted-foreground mb-4" />
+                  <p className="text-sm font-medium text-foreground mb-3">
                     拖拽文件到此处或点击选择文件
                   </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
+                  <p className="text-xs text-muted-foreground mb-4">
                     支持所有文件类型
                   </p>
                   <Input
@@ -528,7 +535,7 @@ export function Step3({
                   />
                   <Label
                     htmlFor="file-upload"
-                    className="inline-flex items-center px-6 py-2 bg-blue-600 text-white rounded-md cursor-pointer hover:bg-blue-700 transition-colors"
+                    className="inline-flex items-center px-6 py-2 bg-primary text-primary-foreground rounded-md cursor-pointer hover:bg-primary/90 transition-colors"
                   >
                     <Upload className="h-4 w-4 mr-2" />
                     选择文件
@@ -536,14 +543,14 @@ export function Step3({
                 </>
               ) : (
                 <div className="space-y-4">
-                  <FileText className="mx-auto h-12 w-12 text-blue-600" />
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">
+                  <FileText className="mx-auto h-10 w-10 text-primary" />
+                  <p className="text-sm font-medium text-foreground">
                     已选择文件
                   </p>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                  <p className="text-sm text-muted-foreground">
                     {selectedFile.name}
                   </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                  <p className="text-xs text-muted-foreground">
                     大小: {formatFileSize(selectedFile.size)}
                   </p>
                   <Button
@@ -566,18 +573,18 @@ export function Step3({
         {/* 粘贴内容区域 */}
         {inputMode === 'paste' && (
           <div>
-            <Label className="text-sm font-medium mb-2 block">
-              📋 粘贴内容区域
+            <Label className="text-sm font-medium mb-3 block">
+              粘贴内容
             </Label>
             <textarea
               ref={pasteAreaRef}
               value={pastedContent}
               onChange={(e) => setPastedContent(e.target.value)}
               placeholder="请在此粘贴文本内容..."
-              className="w-full min-h-[300px] px-4 py-3 border-2 border-gray-300 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-900 transition-all"
+              className="w-full min-h-[200px] px-4 py-3 border-0 rounded-xl bg-gray-50 dark:bg-gray-800 text-foreground placeholder-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20 dark:focus:ring-primary/30 transition-all"
             />
-            <div className="flex justify-between items-center mt-2">
-              <p className="text-xs text-gray-500 dark:text-gray-400">
+            <div className="flex justify-between items-center mt-3">
+              <p className="text-sm text-muted-foreground">
                 当前字数: {pastedContent.length}
               </p>
               <Button

@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { S3Storage } from 'coze-coding-dev-sdk';
 import * as xlsx from 'xlsx';
+import { validateFileSize, validateFileType } from '@/config/app';
+import { createErrorResponse, getErrorStatusCode } from '@/utils/errorHandler';
+import { checkRateLimit, createRateLimitHeaders, rateLimitConfigs } from '@/utils/rateLimit';
+import { FeishuTokenCache, CACHE_TTL } from '@/utils/cache';
 
 // 初始化对象存储
 const storage = new S3Storage({
@@ -188,7 +192,28 @@ async function getFeishuAccessToken(appId?: string, appSecret?: string): Promise
     throw new Error('飞书配置缺失，请在右上角点击"飞书配置"按钮输入飞书 App ID 和 App Secret');
   }
 
-  console.log('🔑 [获取访问令牌] App ID:', appId.substring(0, 8) + '...');
+  // 清理参数：去除首尾空格和换行符
+  const cleanAppId = appId.trim();
+  const cleanAppSecret = appSecret.trim();
+  
+  // 检查缓存
+  const cachedToken = FeishuTokenCache.get(cleanAppId);
+  if (cachedToken) {
+    console.log('✅ [获取访问令牌] 使用缓存令牌');
+    return cachedToken;
+  }
+  
+  console.log('🔑 [获取访问令牌] App ID:', cleanAppId.substring(0, 8) + '...');
+  console.log('🔍 [参数详情]', {
+    originalAppIdLength: appId.length,
+    cleanAppIdLength: cleanAppId.length,
+    originalAppSecretLength: appSecret.length,
+    cleanAppSecretLength: cleanAppSecret.length,
+    appIdHasSpaces: appId.includes(' '),
+    appIdHasNewlines: appId.includes('\n'),
+    appIdStartsWithSpace: appId.startsWith(' '),
+    appIdEndsWithSpace: appId.endsWith(' '),
+  });
 
   const response = await fetch('https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal', {
     method: 'POST',
@@ -196,17 +221,29 @@ async function getFeishuAccessToken(appId?: string, appSecret?: string): Promise
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      app_id: appId,
-      app_secret: appSecret,
+      app_id: cleanAppId,
+      app_secret: cleanAppSecret,
     }),
   });
 
   const data = await response.json();
   if (data.code !== 0) {
+    console.error('❌ [飞书API错误]', {
+      code: data.code,
+      msg: data.msg,
+      requestAppId: cleanAppId.substring(0, 8) + '...',
+      requestAppIdLength: cleanAppId.length,
+      requestAppSecretLength: cleanAppSecret.length,
+    });
     throw new Error(`获取飞书访问令牌失败: ${data.msg}`);
   }
 
   console.log('✅ [获取访问令牌] 成功');
+  
+  // 缓存令牌（默认2小时过期）
+  const expiresIn = data.expire || 7200;
+  FeishuTokenCache.set(cleanAppId, data.tenant_access_token, expiresIn);
+  
   return data.tenant_access_token;
 }
 
@@ -744,8 +781,17 @@ async function syncToFeishuSpreadsheet(
 
         const data = await response.json();
         if (data.code !== 0) {
-          console.error(`❌ [批量创建] 第 ${Math.floor(batchStart / BATCH_SIZE) + 1} 批飞书返回错误:`, data);
-          throw new Error(`批量创建失败: ${data.msg} (code: ${data.code})`);
+          console.error(`❌ [批量创建] 第 ${Math.floor(batchStart / BATCH_SIZE) + 1} 批飞书返回错误:`, {
+            code: data.code,
+            msg: data.msg,
+            endpoint: batchCreateUrl,
+            requestBody: JSON.stringify({ records: batchRecords }).substring(0, 500),
+            batchSize: batchRecords.length,
+            batchIndex: Math.floor(batchStart / BATCH_SIZE) + 1,
+            spreadsheetToken: token.substring(0, 10) + '...',
+            sheetId: sheet.substring(0, 10) + '...'
+          });
+          throw new Error(`飞书API错误 ${data.code}: ${data.msg}`);
         }
         
         // 统计成功和失败的记录数
@@ -790,13 +836,40 @@ export async function POST(request: NextRequest) {
     console.log('🔔 [开始处理上传请求]', new Date().toISOString());
     console.log('🚀 [版本检查] 代码已更新 - 2025-02-23');
 
+    // 限流检查
+    const rateLimitResult = checkRateLimit(request, 'upload', rateLimitConfigs.upload);
+    if (!rateLimitResult.allowed) {
+      console.warn('⚠️ [限流] 请求被限制:', rateLimitResult.message);
+      return NextResponse.json(
+        {
+          error: rateLimitResult.message,
+          code: 'RATE_LIMIT_EXCEEDED',
+          retryAfter: Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000),
+        },
+        { 
+          status: 429,
+          headers: {
+            'Retry-After': String(Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000)),
+            ...createRateLimitHeaders(rateLimitResult.remaining, rateLimitResult.resetTime, rateLimitConfigs.upload.maxRequests),
+          },
+        }
+      );
+    }
+
     const formData = await request.formData();
     const file = formData.get('file') as File;
-    const spreadsheetToken = formData.get('spreadsheetToken') as string | null;
-    const sheetId = formData.get('sheetId') as string | null;
-    const sheetNameParam = formData.get('sheetName') as string | null; // 新增：指定的Sheet名称
-    const appId = formData.get('appId') as string | null; // 新增：用户提供的飞书 App ID
-    const appSecret = formData.get('appSecret') as string | null; // 新增：用户提供的飞书 App Secret
+    const rawSpreadsheetToken = formData.get('spreadsheetToken') as string | null;
+    const rawSheetId = formData.get('sheetId') as string | null;
+    const rawSheetNameParam = formData.get('sheetName') as string | null; // 新增：指定的Sheet名称
+    const rawAppId = formData.get('appId') as string | null; // 新增：用户提供的飞书 App ID
+    const rawAppSecret = formData.get('appSecret') as string | null; // 新增：用户提供的飞书 App Secret
+
+    // 清理参数：去除首尾空格和换行符
+    const spreadsheetToken = rawSpreadsheetToken?.trim() || null;
+    const sheetId = rawSheetId?.trim() || null;
+    const sheetNameParam = rawSheetNameParam?.trim() || null;
+    const appId = rawAppId?.trim() || null;
+    const appSecret = rawAppSecret?.trim() || null;
 
     console.log('📦 [请求参数]', {
       fileName: file?.name,
@@ -806,6 +879,10 @@ export async function POST(request: NextRequest) {
       sheetName: sheetNameParam,
       userAppId: appId?.substring(0, 10) + '...',
       hasUserAppSecret: !!appSecret,
+      rawAppIdLength: rawAppId?.length,
+      cleanAppIdLength: appId?.length,
+      rawAppSecretLength: rawAppSecret?.length,
+      cleanAppSecretLength: appSecret?.length,
     });
 
     if (!file) {
@@ -814,6 +891,33 @@ export async function POST(request: NextRequest) {
         { error: '未找到文件' },
         { status: 400 }
       );
+    }
+
+    // 文件安全性验证
+    const fileName = file.name;
+    
+    // 1. 验证文件大小
+    if (!validateFileSize(file.size)) {
+      console.error('❌ [文件验证] 文件大小超过限制:', file.size);
+      return NextResponse.json(
+        { error: '文件大小超过限制，最大允许100MB' },
+        { status: 400 }
+      );
+    }
+    
+    // 2. 验证文件类型
+    if (!validateFileType(fileName)) {
+      console.error('❌ [文件验证] 不支持的文件类型:', fileName);
+      return NextResponse.json(
+        { error: '不支持的文件类型，仅支持.xlsx、.xls、.csv、.txt、.pdf、.doc、.docx格式' },
+        { status: 400 }
+      );
+    }
+    
+    // 3. 清理文件名，防止路径遍历攻击
+    const cleanFileName = fileName.replace(/[\/\\:*?"<>|]/g, '_').replace(/\.\./g, '_');
+    if (cleanFileName !== fileName) {
+      console.warn('⚠️ [文件验证] 文件名包含危险字符，已清理:', fileName, '->', cleanFileName);
     }
 
     // 读取文件内容
@@ -826,7 +930,7 @@ export async function POST(request: NextRequest) {
     try {
       fileKey = await storage.uploadFile({
         fileContent: buffer,
-        fileName: file.name,
+        fileName: cleanFileName,
         contentType: file.type,
       });
 
@@ -857,8 +961,26 @@ export async function POST(request: NextRequest) {
     let excelData: { columns: string[]; data: Record<string, any>[] } | undefined;
     const fileExtension = file.name.toLowerCase().split('.').pop();
     
-    if (fileExtension === 'xlsx' || fileExtension === 'xls') {
-      console.log('📊 [Excel] 检测到Excel文件，开始读取内容');
+    // 检查是否有直接提供的excelData（来自批量导入等场景）
+    const excelDataParam = formData.get('excelData') as string | null;
+    if (excelDataParam) {
+      try {
+        console.log('📊 [Excel] 检测到直接提供的excelData，开始解析');
+        const parsedData = JSON.parse(excelDataParam);
+        if (parsedData.columns && parsedData.data) {
+          excelData = parsedData;
+          console.log('📊 [Excel] 从excelData参数读取成功');
+        } else {
+          console.warn('⚠️ [Excel] excelData参数格式不正确，缺少columns或data字段');
+        }
+      } catch (error) {
+        console.warn('⚠️ [Excel] 解析excelData参数失败:', error);
+      }
+    }
+    
+    // 如果没有提供excelData参数，尝试从文件中读取
+    if (!excelData && (fileExtension === 'xlsx' || fileExtension === 'xls' || fileExtension === 'csv')) {
+      console.log('📊 [Excel] 检测到Excel/CSV文件，开始读取内容');
       try {
         excelData = readExcelContent(buffer, sheetNameParam || undefined);
         console.log('📊 [Excel] Excel数据读取成功');
@@ -905,7 +1027,7 @@ export async function POST(request: NextRequest) {
         }
         
         syncResult = await syncToFeishuSpreadsheet(accessToken, spreadsheetToken || '', sheetId || undefined, {
-          fileName: file.name,
+          fileName: cleanFileName,
           fileSize: file.size,
           fileType: file.type,
           fileUrl,
@@ -927,7 +1049,7 @@ export async function POST(request: NextRequest) {
       success: true,
       fileKey,
       fileUrl,
-      fileName: file.name,
+      fileName: cleanFileName,
       fileSize: file.size,
       fileType: file.type,
       uploadTime,
@@ -942,21 +1064,19 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('❌ [文件上传失败]', error);
+    
+    // 使用统一的错误处理
+    const errorResponse = createErrorResponse(error);
+    const statusCode = getErrorStatusCode(error instanceof Error ? error : new Error(String(error)));
+    
     console.error('❌ [错误详情]', {
-      message: error instanceof Error ? error.message : '未知错误',
-      stack: error instanceof Error ? error.stack : '无堆栈',
-      timestamp: new Date().toISOString(),
+      message: errorResponse.error,
+      code: errorResponse.code,
+      details: errorResponse.details,
+      timestamp: errorResponse.timestamp,
+      statusCode,
     });
-    console.error('❌ [环境变量状态]', {
-      COZE_BUCKET_NAME: process.env.coze_bucket_name ? '已配置' : '未配置',
-    });
-    return NextResponse.json(
-      {
-        error: '文件上传失败',
-        details: error instanceof Error ? error.message : '未知错误',
-        timestamp: new Date().toISOString(),
-      },
-      { status: 500 }
-    );
+    
+    return NextResponse.json(errorResponse, { status: statusCode });
   }
 }

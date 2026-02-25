@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -37,6 +37,11 @@ import {
   Check,
   Trash2,
   Plus,
+  Search,
+  Filter,
+  Clock,
+  PlayCircle,
+  PauseCircle,
 } from 'lucide-react';
 import type { HistoryTemplate, FeishuTable, FieldMatchResult } from '@/types';
 import { useTemplateManagement } from '@/hooks/useTemplateManagement';
@@ -115,7 +120,38 @@ export function TemplateList({
   const [showCreateTableDialog, setShowCreateTableDialog] = useState(false);
   const [creatingTable, setCreatingTable] = useState(false);
   const [currentTemplateForCreate, setCurrentTemplateForCreate] = useState<HistoryTemplate | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'complete' | 'incomplete'>('all');
   
+  // 模板过滤和搜索逻辑
+  const filteredTemplates = useMemo(() => {
+    return (historyTemplates || []).filter(template => {
+      // 搜索过滤
+      const matchesSearch = searchQuery === '' || 
+        template.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (template.remark && template.remark.toLowerCase().includes(searchQuery.toLowerCase()));
+      
+      // 状态过滤
+      if (filterStatus === 'all') return matchesSearch;
+      
+      if (filterStatus === 'complete') {
+        // 检查模板是否完整（有工作表映射）
+        return matchesSearch && 
+          template.tableToSheetMapping && 
+          Object.keys(template.tableToSheetMapping).length > 0;
+      }
+      
+      if (filterStatus === 'incomplete') {
+        // 检查模板是否不完整（没有工作表映射）
+        return matchesSearch && 
+          (!template.tableToSheetMapping || 
+           Object.keys(template.tableToSheetMapping).length === 0);
+      }
+      
+      return matchesSearch;
+    });
+  }, [historyTemplates, searchQuery, filterStatus]);
+
   const {
     autoAddFields,
     setAutoAddFields,
@@ -161,6 +197,7 @@ export function TemplateList({
             ? {
                 ...temp,
                 selectedTableIds: [newTable.id],
+                selectedTableNames: [newTable.name],
                 tableToSheetMapping: { [newTable.id]: Object.values(temp.tableToSheetMapping || {})[0] || '' },
               }
             : temp
@@ -235,13 +272,12 @@ export function TemplateList({
     }
   };
 
-  if (historyTemplates.length === 0) {
+  if (filteredTemplates.length === 0) {
     return (
       <>
         {/* 顶部工具栏 */}
-        <div className="flex items-center justify-between px-4 py-2 border-b border-gray-200 dark:border-gray-700">
-          <h3 className="text-sm font-medium text-gray-900 dark:text-white">历史模版</h3>
-          <div className="flex items-center gap-2">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-5 bg-gray-50 dark:bg-gray-800/50 rounded-2xl">
+          <div className="flex flex-wrap items-center gap-2">
             {/* 导入按钮 */}
             <input
               type="file"
@@ -258,17 +294,17 @@ export function TemplateList({
                 const input = document.getElementById('import-templates-input-empty') as HTMLInputElement;
                 if (input) input.click();
               }}
-              className="h-8 px-2 text-xs"
+              className="h-10 px-4 text-xs bg-gray-50 dark:bg-gray-800 border-0 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700"
             >
-              <Upload className="h-3 w-3 mr-1" />
+              <Upload className="h-4 w-4 mr-1.5" />
               导入
             </Button>
           </div>
         </div>
-        <div className="p-4 text-center text-gray-500 dark:text-gray-400">
-          <FileText className="h-6 w-6 mx-auto mb-2 opacity-50" />
+        <div className="p-8 text-center text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800/50 rounded-2xl mt-4">
+          <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
           <p className="text-sm">暂无历史模版</p>
-          <p className="text-xs mt-1">配置完成后可以保存为模版</p>
+          <p className="text-xs mt-2">配置完成后可以保存为模版</p>
         </div>
       </>
     );
@@ -277,9 +313,52 @@ export function TemplateList({
   return (
     <>
       {/* 顶部工具栏 */}
-      <div className="flex items-center justify-between px-4 py-2 border-b border-gray-200 dark:border-gray-700">
-        <h3 className="text-sm font-medium text-gray-900 dark:text-white">历史模版</h3>
-        <div className="flex items-center gap-2">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-5 bg-gray-50 dark:bg-gray-800/50 rounded-2xl">
+        {/* 搜索和筛选 */}
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <div className="relative">
+            <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-500 dark:text-gray-400" />
+            <Input
+              type="text"
+              placeholder="搜索模版..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 pr-3 py-2 text-xs w-full sm:w-64 h-10 bg-gray-50 dark:bg-gray-800 border-0 rounded-xl"
+            />
+          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="h-10 px-4 text-xs bg-gray-50 dark:bg-gray-800 border-0 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700">
+                <Filter className="h-4 w-4 mr-1.5" />
+                筛选
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48 rounded-xl">
+              <DropdownMenuLabel className="text-xs font-medium">状态筛选</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => setFilterStatus('all')}
+                className={filterStatus === 'all' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300' : ''}
+              >
+                全部
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setFilterStatus('complete')}
+                className={filterStatus === 'complete' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300' : ''}
+              >
+                已配置
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setFilterStatus('incomplete')}
+                className={filterStatus === 'incomplete' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300' : ''}
+              >
+                未配置
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+        {/* 操作按钮 */}
+        <div className="flex items-center gap-2 w-full sm:w-auto">
           {/* 导入按钮 */}
           <input
             type="file"
@@ -296,9 +375,9 @@ export function TemplateList({
               const input = document.getElementById('import-templates-input') as HTMLInputElement;
               if (input) input.click();
             }}
-            className="h-8 px-2 text-xs"
+            className="h-10 px-4 text-xs bg-gray-50 dark:bg-gray-800 border-0 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700"
           >
-            <Upload className="h-3 w-3 mr-1" />
+            <Upload className="h-4 w-4 mr-1.5" />
             导入
           </Button>
           {/* 导出按钮 */}
@@ -307,9 +386,9 @@ export function TemplateList({
             variant="outline"
             size="sm"
             onClick={handleExportTemplates}
-            className="h-8 px-2 text-xs"
+            className="h-10 px-4 text-xs bg-gray-50 dark:bg-gray-800 border-0 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700"
           >
-            <Download className="h-3 w-3 mr-1" />
+            <Download className="h-4 w-4 mr-1.5" />
             导出
           </Button>
           {/* 全部同步上传按钮 */}
@@ -318,10 +397,10 @@ export function TemplateList({
             variant="outline"
             size="sm"
             onClick={handleBatchUpload}
-            className="h-8 px-2 text-xs"
+            className="h-10 px-4 text-xs bg-blue-600 text-white border-0 rounded-xl hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600"
           >
-            <CheckCircle className="h-3 w-3 mr-1" />
-            全部同步上传
+            <CheckCircle className="h-4 w-4 mr-1.5" />
+            全部同步
           </Button>
           {/* 清除全部模板按钮 */}
           <Button
@@ -332,9 +411,9 @@ export function TemplateList({
               console.log('🔍 [历史模版] 点击了清除全部按钮');
               setShowClearAllDialog(true);
             }}
-            className="h-8 px-2 text-xs"
+            className="h-10 px-4 text-xs bg-gray-50 dark:bg-gray-800 border-0 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700"
           >
-            <Trash2 className="h-3 w-3 mr-1" />
+            <Trash2 className="h-4 w-4 mr-1.5" />
             清除全部
           </Button>
         </div>
@@ -342,689 +421,710 @@ export function TemplateList({
 
       {/* 批量上传进度提示 */}
       {batchUploadProgress && (
-        <div className="px-4 py-2 bg-blue-50 dark:bg-blue-950 border-b border-blue-200 dark:border-blue-800">
+        <div className="mt-4 px-5 py-4 bg-blue-50 dark:bg-blue-900/30 rounded-2xl">
           <p className="text-xs text-blue-700 dark:text-blue-300 flex items-center gap-2">
-            <Loader2 className="h-3 w-3 animate-spin" />
+            <Loader2 className="h-4 w-4 animate-spin" />
             {batchUploadProgress}
           </p>
         </div>
       )}
 
       {/* 模版列表 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {historyTemplates.map((template) => {
-          const sheetNames = templateSheetNames[template.id] || [];
-          const hasSheetMappingErrors = template.selectedTableIds.some((tableId: string) => {
-            const savedSheet = template.tableToSheetMapping?.[tableId];
-            if (!savedSheet) return true;
-            const sheetExists = sheetNames.some((sheet) => sheet.toLowerCase() === savedSheet.toLowerCase());
-            if (!sheetExists) return true;
-            const matches = template.fieldMatchResults?.[tableId] || [];
-            const matchedCount = matches.filter((m: any) => m.matched).length;
-            return matchedCount === 0;
-          });
+      <div className="mt-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredTemplates.map((template) => {
+            const sheetNames = templateSheetNames[template.id] || [];
+            const hasSheetMappingErrors = (template.selectedTableIds || []).some((tableId: string) => {
+              const savedSheet = template.tableToSheetMapping?.[tableId];
+              if (!savedSheet) return false;
+              const sheetExists = sheetNames.some((sheet) => sheet.toLowerCase() === savedSheet.toLowerCase());
+              if (!sheetExists) return true;
+              const matches = template.fieldMatchResults?.[tableId] || [];
+              const matchedCount = matches.filter((m: any) => m.matched).length;
+              return matchedCount === 0;
+            });
 
-          return (
-            <div
-              key={template.id}
-              className={`p-4 rounded-lg hover:shadow-md transition-shadow ${
-                hasSheetMappingErrors
-                  ? 'bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800'
-                  : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700'
-              }`}
-            >
+            return (
+              <div key={template.id} className={`overflow-hidden hover:shadow-md transition-all duration-300 bg-gray-50 dark:bg-gray-900/50 border-0 rounded-2xl ${
+                hasSheetMappingErrors 
+                  ? 'relative' 
+                  : ''
+              }`}>
+                {hasSheetMappingErrors && (
+                  <div className="absolute inset-0 rounded-2xl pointer-events-none overflow-hidden">
+                    <div className="absolute inset-0 rounded-2xl bg-gradient-radial from-red-500/60 via-pink-400/40 to-transparent animate-[fog-dissolve_3s_ease-in-out_infinite]"></div>
+                    <div className="absolute inset-4 rounded-2xl bg-gradient-radial from-red-400/40 via-pink-300/20 to-transparent animate-[fog-dissolve_3s_ease-in-out_infinite_1.5s]"></div>
+                    <div className="absolute inset-2 rounded-2xl border border-red-400/40 animate-pulse"></div>
+                    <div className="absolute inset-4 rounded-2xl border border-pink-300/30 animate-pulse" style={{animationDelay: '0.75s'}}></div>
+                  </div>
+                )}
+                <div className="p-4">
               {/* 保存成功提示 */}
-              {showSaveSuccess === template.id && (
-                <div className="mb-3 p-2 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-md flex items-center gap-2">
-                  <Check className="h-4 w-4 text-green-600 dark:text-green-400 flex-shrink-0" />
-                  <span className="text-xs text-green-700 dark:text-green-300">
-                    {showSaveSuccess === template.id ? '配置已自动保存' : ''}
-                  </span>
-                </div>
-              )}
-              
-              {/* 头部信息 */}
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex-1 min-w-0">
-                  <h4
-                    className={`text-sm font-medium truncate ${
-                      hasSheetMappingErrors
-                        ? 'text-red-900 dark:text-red-100'
-                        : 'text-gray-900 dark:text-white'
-                    }`}
-                  >
-                    {hasSheetMappingErrors && '⚠️ '}
-                    {template.name}
-                  </h4>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                    {new Date(template.createdAt).toLocaleString('zh-CN')}
-                  </p>
-                </div>
-                <div className="flex items-center gap-1 ml-2">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => {
-                      setTemplateToEdit(template);
-                      setShowSaveTemplateModal(true);
-                    }}
-                    className="h-7 w-7"
-                    title="编辑模版"
-                  >
-                    <Settings className="h-3.5 w-3.5" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleDeleteTemplate(template.id)}
-                    className="h-7 w-7 text-red-600 hover:text-red-800 dark:text-red-400"
-                    title="删除模版"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-              </div>
-
-              {/* 备注信息 */}
-              {template.remark && (
-                <p className="text-xs text-gray-600 dark:text-gray-400 mb-3 line-clamp-2">
-                  {template.remark}
-                </p>
-              )}
-
-              {/* 标签信息 */}
-              <div className="flex items-center gap-2 mb-3 flex-wrap">
-                <span className="text-xs px-2 py-0.5 bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200 rounded">
-                  {template.inputMode === 'file' ? '文件上传' : '粘贴内容'}
-                </span>
-                <span className="text-xs px-2 py-0.5 bg-purple-100 dark:bg-purple-900/50 text-purple-800 dark:text-purple-200 rounded">
-                  {template.selectedTableIds.length} 个工作表
-                </span>
-                {template.tableToSheetMapping &&
-                  Object.keys(template.tableToSheetMapping).length > 0 && (
-                    <span className="text-xs px-2 py-0.5 bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200 rounded">
-                      {Object.keys(template.tableToSheetMapping).length} 个子表配置
+                {showSaveSuccess === template.id && (
+                  <div className="mb-3 p-2 bg-blue-50 dark:bg-blue-900/30 rounded-xl flex items-center gap-2">
+                    <Check className="h-4 w-4 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+                    <span className="text-xs text-blue-700 dark:text-blue-300">
+                      {showSaveSuccess === template.id ? '配置已自动保存' : ''}
                     </span>
-                  )}
-              </div>
-
-              {/* 操作区域 */}
-              <div className="space-y-2">
-                {/* 配置子表按钮（如果还没有子表配置） */}
-                {(!template.tableToSheetMapping ||
-                  Object.keys(template.tableToSheetMapping).length === 0) && (
-                  <DropdownMenu
-                    open={showSheetMappingDropdown === template.id}
-                    onOpenChange={(open) =>
-                      setShowSheetMappingDropdown(open ? template.id : null)
-                    }
-                  >
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="w-full text-xs bg-orange-600 text-white hover:bg-orange-700 dark:bg-orange-700 dark:hover:bg-orange-600 py-2"
-                      >
-                        <Settings className="h-3.5 w-3.5 mr-1" />
-                        配置子表
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-72 max-h-80 overflow-y-auto">
-                      <DropdownMenuLabel className="text-xs font-medium">
-                        选择历史子表配置
-                      </DropdownMenuLabel>
-                      <DropdownMenuSeparator />
-                      {historyTemplates.map((t) => {
-                        const sheetMappingCount = t.tableToSheetMapping
-                          ? Object.keys(t.tableToSheetMapping).length
-                          : 0;
-                        const hasMapping = sheetMappingCount > 0;
-                        return (
-                          <DropdownMenuItem
-                            key={t.id}
-                            disabled={!hasMapping}
-                            onClick={() => {
-                              if (t.tableToSheetMapping) {
-                                const updatedTemplates = historyTemplates.map((temp) =>
-                                  temp.id === template.id
-                                    ? {
-                                        ...temp,
-                                        tableToSheetMapping: { ...t.tableToSheetMapping },
-                                      }
-                                    : temp
-                                );
-                                setHistoryTemplates(updatedTemplates);
-                                localStorage.setItem(
-                                  'feishuHistoryTemplates',
-                                  JSON.stringify(updatedTemplates)
-                                );
-                                console.log(
-                                  `✅ [历史模版] 已应用模版 "${t.name}" 的子表配置到 "${template.name}"`
-                                );
-                              }
-                              setShowSheetMappingDropdown(null);
-                            }}
-                            className={`cursor-pointer py-2 ${
-                              !hasMapping ? 'opacity-50' : ''
-                            }`}
-                          >
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-1">
-                                <FileSpreadsheet className="h-3 w-3 text-purple-600 flex-shrink-0" />
-                                <span className="text-sm font-medium text-gray-900 dark:text-white">
-                                  {t.name}
-                                </span>
-                                {t.id === template.id && (
-                                  <span className="text-xs bg-blue-100 dark:bg-blue-900 px-1 py-0.5 rounded text-blue-700 dark:text-blue-300">
-                                    当前
-                                  </span>
-                                )}
-                              </div>
-                              <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
-                                <span>{sheetMappingCount} 个子表配置</span>
-                                <span>•</span>
-                                <span className="truncate max-w-[100px]">
-                                  {t.remark || '无备注'}
-                                </span>
-                              </div>
-                            </div>
-                          </DropdownMenuItem>
-                        );
-                      })}
-                      {historyTemplates.length === 0 && (
-                        <div className="px-2 py-3 text-xs text-gray-500 dark:text-gray-400 text-center">
-                          暂无历史模版
-                        </div>
-                      )}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                )}
-
-                {/* 文件上传区域 */}
-                <div>
-                  <input
-                    type="file"
-                    id={`file-upload-${template.id}`}
-                    accept=".xlsx,.xls"
-                    className="hidden"
-                    onChange={async (e) => {
-                      const file = e.target.files?.[0];
-                      if (file) {
-                        await handleFileUpload(template.id, file);
-                        setShowSaveSuccess('文件已上传，字段匹配已刷新');
-                        setTimeout(() => setShowSaveSuccess(null), 3000);
-                      }
-                    }}
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      const fileInput = document.getElementById(
-                        `file-upload-${template.id}`
-                      ) as HTMLInputElement;
-                      if (fileInput) fileInput.click();
-                    }}
-                    className="w-full text-xs border-green-300 dark:border-green-700 text-green-700 dark:text-green-300 hover:bg-green-50 dark:hover:bg-green-950 py-2 overflow-hidden"
-                  >
-                    <Upload className="h-3.5 w-3.5 mr-1 flex-shrink-0" />
-                    <span className="truncate min-w-0">
-                      {templateFiles[template.id]
-                        ? `已上传: ${templateFiles[template.id].name}`
-                        : '上传Excel文件'}
-                    </span>
-                  </Button>
-                </div>
-
-                {/* 文件路径选择区域 */}
-                <div className="mt-3">
-                  <h5 className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    📁 文件路径选择
-                  </h5>
-                  <FilePathSelector
-                    templateId={template.id}
-                    filePath={template.filePath}
-                    onFileSelect={async (file) => {
-                      await handleFileUpload(template.id, file);
-                      setShowSaveSuccess('文件已选择，字段匹配已刷新');
-                      setTimeout(() => setShowSaveSuccess(null), 3000);
-                    }}
-                    onFilePathChange={(path) => {
-                      const updatedTemplates = historyTemplates.map((temp) =>
-                        temp.id === template.id
-                          ? { ...temp, filePath: path, updatedAt: new Date().toISOString() }
-                          : temp
-                      );
-                      setHistoryTemplates(updatedTemplates);
-                      localStorage.setItem(
-                        'feishuHistoryTemplates',
-                        JSON.stringify(updatedTemplates)
-                      );
-                      console.log(
-                        `✅ [历史模版] 已更新模版 "${template.name}" 的文件路径: ${path}`
-                      );
-                    }}
-                  />
-                </div>
-
-                {/* 文件上传状态提示 */}
-                {templateFiles[template.id] ? (
-                  <div className="p-3 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-md mb-2">
-                    <p className="text-xs text-green-800 dark:text-green-200">
-                      ✅ 文件已上传：
-                      <span className="font-medium">
-                        {templateFiles[template.id]?.name}
-                      </span>
-                    </p>
-                    {templateSheetNames[template.id] && (
-                      <p className="text-xs text-green-700 dark:text-green-300 mt-1">
-                        📄 识别到 {templateSheetNames[template.id].length} 个 Sheet：
-                        {templateSheetNames[template.id].join(', ')}
-                      </p>
-                    )}
-                  </div>
-                ) : (
-                  <div className="p-3 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-md mb-2">
-                    <p className="text-xs text-red-800 dark:text-red-200">
-                      ⚠️ 未上传Excel文件
-                    </p>
-                    <p className="text-xs text-red-700 dark:text-red-300 mt-1">
-                      请点击下方"上传Excel文件"按钮上传文件
-                    </p>
                   </div>
                 )}
-
-                {/* Sheet选择区域（文件上传后显示） */}
-                {template.tableToSheetMapping &&
-                  Object.keys(template.tableToSheetMapping).length > 0 &&
-                  templateFiles[template.id] &&
-                  templateSheetNames[template.id] && (
-                    <div
-                      className={`p-3 rounded-md mb-2 ${
+                
+                {/* 头部信息 */}
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex-1 min-w-0">
+                    <h4
+                      className={`text-sm font-medium truncate ${
                         hasSheetMappingErrors
-                          ? 'bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800'
-                          : 'bg-purple-50 dark:bg-purple-950 border border-purple-200 dark:border-purple-800'
+                          ? 'text-red-900 dark:text-red-100'
+                          : 'text-gray-900 dark:text-white'
                       }`}
                     >
-                      <div className="flex items-center justify-between mb-2">
-                        <p
-                          className={`text-xs font-medium ${
-                            hasSheetMappingErrors
-                              ? 'text-red-800 dark:text-red-200'
-                              : 'text-purple-800 dark:text-purple-200'
-                          }`}
+                      {hasSheetMappingErrors && '⚠️ '}
+                      {template.name}
+                    </h4>
+                    <div className="flex items-center gap-2 mt-1">
+                      <Clock className="h-3 w-3 text-gray-500 dark:text-gray-400" />
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        {new Date(template.createdAt).toLocaleString('zh-CN')}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 ml-2">
+                    {/* 编辑按钮 */}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => {
+                        setTemplateToEdit(template);
+                        setShowSaveTemplateModal(true);
+                      }}
+                      className="h-7 w-7"
+                      title="编辑模版"
+                    >
+                      <Settings className="h-3.5 w-3.5" />
+                    </Button>
+                    {/* 删除按钮 */}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDeleteTemplate(template.id)}
+                      className="h-7 w-7 text-red-600 hover:text-red-800 dark:text-red-400"
+                      title="删除模版"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </div>
+
+                {/* 备注信息 */}
+                {template.remark && (
+                  <p className="text-xs text-gray-600 dark:text-gray-400 mb-3 line-clamp-2">
+                    {template.remark}
+                  </p>
+                )}
+
+                {/* 标签信息 */}
+                <div className="flex items-center gap-2 mb-4 flex-wrap">
+                  <span className="text-xs px-3 py-1 rounded-xl font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+                    {template.inputMode === 'file' ? '文件上传' : '粘贴内容'}
+                  </span>
+                  <span className="text-xs px-3 py-1 rounded-xl font-medium bg-gray-200 text-gray-700 dark:bg-gray-800 dark:text-gray-300">
+                    {(template.selectedTableIds || []).length} 个工作表
+                  </span>
+                  {template.tableToSheetMapping &&
+                    Object.keys(template.tableToSheetMapping).length > 0 && (
+                      <span className="text-xs px-3 py-1 rounded-xl font-medium bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400">
+                        已配置 {Object.keys(template.tableToSheetMapping).length} 个子表
+                      </span>
+                    )}
+                </div>
+
+                {/* 操作区域 */}
+                <div className="space-y-4">
+                  {/* 配置子表按钮（如果还没有子表配置） */}
+                  {(!template.tableToSheetMapping ||
+                    Object.keys(template.tableToSheetMapping).length === 0) && (
+                    <DropdownMenu
+                      open={showSheetMappingDropdown === template.id}
+                      onOpenChange={(open) =>
+                        setShowSheetMappingDropdown(open ? template.id : null)
+                      }
+                    >
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="w-full text-sm bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600 py-2 transition-all duration-200 border-0 rounded-xl"
                         >
-                          {hasSheetMappingErrors
-                            ? '⚠️ 工作表配置存在问题'
-                            : '📊 工作表配置'}
-                        </p>
-                        <div className="flex items-center gap-2">
-                          {/* 修改配置下拉菜单 */}
-                          <DropdownMenu
-                            open={showSheetMappingDropdown === template.id}
-                            onOpenChange={(open) =>
-                              setShowSheetMappingDropdown(open ? template.id : null)
-                            }
-                          >
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                className="h-6 px-2 text-xs text-purple-700 hover:text-purple-900 dark:text-purple-300 dark:hover:text-purple-100"
-                              >
-                                ✏️ 修改配置
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-72 max-h-80 overflow-y-auto">
-                              <DropdownMenuLabel className="text-xs font-medium">
-                                选择历史子表配置
-                              </DropdownMenuLabel>
-                              <DropdownMenuSeparator />
-                              {historyTemplates.map((t) => {
-                                const sheetMappingCount = t.tableToSheetMapping
-                                  ? Object.keys(t.tableToSheetMapping).length
-                                  : 0;
-                                return (
-                                  <DropdownMenuItem
-                                    key={t.id}
-                                    onClick={() => {
-                                      // 应用该模版的子表配置到当前模版
-                                      if (t.tableToSheetMapping) {
-                                        const updatedTemplates = historyTemplates.map((temp) =>
-                                          temp.id === template.id
-                                            ? {
-                                                ...temp,
-                                                tableToSheetMapping: {
-                                                  ...t.tableToSheetMapping,
-                                                },
-                                              }
-                                            : temp
-                                        );
-                                        setHistoryTemplates(updatedTemplates);
-                                        localStorage.setItem(
-                                          'feishuHistoryTemplates',
-                                          JSON.stringify(updatedTemplates)
-                                        );
-                                        console.log(
-                                          `✅ [历史模版] 已应用模版 "${t.name}" 的子表配置到 "${template.name}"`
-                                        );
-                                      }
-                                      setShowSheetMappingDropdown(null);
-                                    }}
-                                    className="cursor-pointer py-2"
-                                  >
-                                    <div className="flex-1 min-w-0">
-                                      <div className="flex items-center gap-2 mb-1">
-                                        <FileSpreadsheet className="h-3 w-3 text-purple-600 flex-shrink-0" />
-                                        <span className="text-sm font-medium text-gray-900 dark:text-white">
-                                          {t.name}
-                                        </span>
-                                        {t.id === template.id && (
-                                          <span className="text-xs bg-blue-100 dark:bg-blue-900 px-1 py-0.5 rounded text-blue-700 dark:text-blue-300">
-                                            当前
-                                          </span>
-                                        )}
-                                      </div>
-                                      <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
-                                        <span>{sheetMappingCount} 个子表配置</span>
-                                        <span>•</span>
-                                        <span className="truncate max-w-[100px]">
-                                          {t.remark || '无备注'}
-                                        </span>
-                                      </div>
-                                    </div>
-                                  </DropdownMenuItem>
-                                );
-                              })}
-                              {historyTemplates.length === 0 && (
-                                <div className="px-2 py-3 text-xs text-gray-500 dark:text-gray-400 text-center">
-                                  暂无历史模版
-                                </div>
-                              )}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={async () => {
-                              await refreshFieldMatches(template);
-                              setShowSaveSuccess('字段匹配已刷新');
-                              setTimeout(() => setShowSaveSuccess(null), 3000);
-                            }}
-                            className="h-6 px-2 text-xs text-blue-700 hover:text-blue-900 dark:text-blue-300 dark:hover:text-blue-100"
-                          >
-                            🔄 刷新
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              // 手动保存当前配置
-                              const updatedTemplates = historyTemplates.map((temp) =>
-                                temp.id === template.id ? template : temp
-                              );
-                              setHistoryTemplates(updatedTemplates);
-                              localStorage.setItem(
-                                'feishuHistoryTemplates',
-                                JSON.stringify(updatedTemplates)
-                              );
-                              setShowSaveSuccess('配置已保存');
-                              setTimeout(() => setShowSaveSuccess(null), 3000);
-                            }}
-                            className="h-6 px-2 text-xs text-green-700 hover:text-green-900 dark:text-green-300 dark:hover:text-green-100"
-                          >
-                            💾 保存
-                          </Button>
-                        </div>
-                      </div>
-                      {hasSheetMappingErrors && (
-                        <p className="text-xs text-red-700 dark:text-red-300 mb-2">
-                          ⚠️ 部分工作表的Sheet映射存在问题，请检查配置
-                        </p>
-                      )}
-                      <div className="space-y-2">
-                        {template.selectedTableIds.map((tableId: string) => {
-                          const table = tables.find((t) => t.id === tableId);
-                          const savedSheet = template.tableToSheetMapping?.[tableId];
-                          const sheetNames = templateSheetNames[template.id] || [];
-                          const sheetExists = savedSheet
-                            ? sheetNames.some((sheet) => sheet.toLowerCase() === savedSheet.toLowerCase())
-                            : false;
-                          const matches = template.fieldMatchResults?.[tableId] || [];
-                          const matchedCount = matches.filter((m: any) => m.matched).length;
-                          const unmatchedCount = matches.filter((m: any) => !m.matched)
-                            .length;
-
-                          if (!savedSheet) return null;
-
-                          const hasError = !sheetExists || matchedCount === 0;
-
+                          <Settings className="h-4 w-4 mr-2" />
+                          配置子表
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-80 max-h-96 overflow-y-auto">
+                        <DropdownMenuLabel className="text-sm font-medium">
+                          选择历史子表配置
+                        </DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        {historyTemplates.map((t) => {
+                          const sheetMappingCount = t.tableToSheetMapping
+                            ? Object.keys(t.tableToSheetMapping).length
+                            : 0;
+                          const hasMapping = sheetMappingCount > 0;
                           return (
-                            <div
-                              key={tableId}
-                              className={`p-2 rounded-md ${
-                                hasError
-                                  ? 'bg-red-100 dark:bg-red-900 border border-red-300 dark:border-red-700'
-                                  : 'bg-white dark:bg-gray-900 border border-purple-200 dark:border-purple-800'
+                            <DropdownMenuItem
+                              key={t.id}
+                              disabled={!hasMapping}
+                              onClick={() => {
+                                if (t.tableToSheetMapping) {
+                                  const updatedTemplates = historyTemplates.map((temp) =>
+                                    temp.id === template.id
+                                      ? {
+                                          ...temp,
+                                          tableToSheetMapping: { ...t.tableToSheetMapping },
+                                        }
+                                      : temp
+                                  );
+                                  setHistoryTemplates(updatedTemplates);
+                                  localStorage.setItem(
+                                    'feishuHistoryTemplates',
+                                    JSON.stringify(updatedTemplates)
+                                  );
+                                  console.log(
+                                    `✅ [历史模版] 已应用模版 "${t.name}" 的子表配置到 "${template.name}"`
+                                  );
+                                }
+                                setShowSheetMappingDropdown(null);
+                              }}
+                              className={`cursor-pointer py-3 ${
+                                !hasMapping ? 'opacity-50' : ''
                               }`}
                             >
-                              <div className="flex items-center justify-between mb-1">
-                                <div className="flex items-center gap-2 text-xs flex-1">
-                                  <DropdownMenu
-                                    open={showTableSelectorDropdown === `${template.id}-${tableId}`}
-                                    onOpenChange={(open) =>
-                                      setShowTableSelectorDropdown(open ? `${template.id}-${tableId}` : null)
-                                    }
-                                  >
-                                    <DropdownMenuTrigger asChild>
-                                      <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="sm"
-                                        className="h-auto px-2 py-1 text-left hover:bg-purple-100 dark:hover:bg-purple-900/30 border-2 border-purple-300 dark:border-purple-700 rounded transition-all cursor-pointer"
-                                      >
-                                        <span
-                                          className={`font-medium min-w-0 flex-1 truncate ${
-                                            hasError
-                                              ? 'text-red-900 dark:text-red-100'
-                                              : 'text-gray-900 dark:text-white'
-                                          }`}
-                                        >
-                                          {table?.name || tableId}
-                                        </span>
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="ml-1 flex-shrink-0 text-purple-600">
-                                          <path d="m6 9 6 6 6-6"/>
-                                        </svg>
-                                      </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="start" className="w-64 max-h-60 overflow-y-auto">
-                                      <DropdownMenuLabel className="text-xs font-medium">
-                                        选择工作表
-                                      </DropdownMenuLabel>
-                                      <DropdownMenuSeparator />
-                                      <DropdownMenuItem
-                                        onClick={() => {
-                                          setCurrentTemplateForCreate(template);
-                                          setShowCreateTableDialog(true);
-                                          setShowTableSelectorDropdown(null);
-                                        }}
-                                        className="cursor-pointer py-2 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50"
-                                      >
-                                        <div className="flex-1 min-w-0">
-                                          <div className="flex items-center gap-2">
-                                            <Plus className="h-3 w-3 text-blue-600 flex-shrink-0" />
-                                            <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
-                                              新建工作表
-                                            </span>
-                                          </div>
-                                          <div className="text-xs text-blue-600 dark:text-blue-400 mt-0.5">
-                                            创建新的飞书多维表格工作表
-                                          </div>
-                                        </div>
-                                      </DropdownMenuItem>
-                                      <DropdownMenuSeparator />
-                                      {tables.map((t) => (
-                                        <DropdownMenuItem
-                                          key={t.id}
-                                          onClick={() => {
-                                            const updatedTemplates = historyTemplates.map((temp) =>
-                                              temp.id === template.id
-                                                ? {
-                                                    ...temp,
-                                                    selectedTableIds: [t.id],
-                                                    tableToSheetMapping: {
-                                                      ...temp.tableToSheetMapping,
-                                                      [t.id]: Object.values(temp.tableToSheetMapping || {})[0] || ''
-                                                    }
-                                                  }
-                                                : temp
-                                            );
-                                            setHistoryTemplates(updatedTemplates);
-                                            localStorage.setItem(
-                                              'feishuHistoryTemplates',
-                                              JSON.stringify(updatedTemplates)
-                                            );
-                                            console.log(
-                                              `✅ [历史模版] 已将模版 "${template.name}" 的工作表从 "${table?.name}" 修改为 "${t.name}"`
-                                            );
-                                            setShowTableSelectorDropdown(null);
-                                            setShowSaveSuccess(`工作表已更新为 "${t.name}"`);
-                                            setTimeout(() => setShowSaveSuccess(null), 3000);
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <FileSpreadsheet className="h-4 w-4 text-blue-600 flex-shrink-0" />
+                                  <span className="text-sm font-medium text-gray-900 dark:text-white">
+                                    {t.name}
+                                  </span>
+                                  {t.id === template.id && (
+                                    <span className="text-xs bg-blue-100 dark:bg-blue-900/50 px-2 py-0.5 rounded-xl text-blue-700 dark:text-blue-300">
+                                      当前
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
+                                  <span>{sheetMappingCount} 个子表配置</span>
+                                  <span>•</span>
+                                  <span className="truncate max-w-[120px]">
+                                    {t.remark || '无备注'}
+                                  </span>
+                                </div>
+                              </div>
+                            </DropdownMenuItem>
+                          );
+                        })}
+                        {historyTemplates.length === 0 && (
+                          <div className="px-3 py-4 text-sm text-gray-500 dark:text-gray-400 text-center">
+                            暂无历史模版
+                          </div>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
 
-                                            // 自动刷新字段匹配
-                                            const updatedTemplate = updatedTemplates.find((temp) => temp.id === template.id);
-                                            if (updatedTemplate) {
-                                              console.log(`🔄 [选择工作表] 自动刷新字段匹配`);
-                                              refreshFieldMatches(updatedTemplate);
-                                            }
+                  {/* 文件上传区域 */}
+                  <div>
+                    <input
+                      type="file"
+                      id={`file-upload-${template.id}`}
+                      accept=".xlsx,.xls"
+                      className="hidden"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          await handleFileUpload(template.id, file);
+                          setShowSaveSuccess('文件已上传，字段匹配已刷新');
+                          setTimeout(() => setShowSaveSuccess(null), 3000);
+                        }
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const fileInput = document.getElementById(
+                          `file-upload-${template.id}`
+                        ) as HTMLInputElement;
+                        if (fileInput) fileInput.click();
+                      }}
+                      className="w-full text-sm border-0 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 py-2 overflow-hidden transition-all duration-200 bg-gray-50 dark:bg-gray-800 rounded-xl"
+                    >
+                      <Upload className="h-4 w-4 mr-2 flex-shrink-0" />
+                      <span className="truncate min-w-0">
+                        {templateFiles[template.id]
+                          ? `已上传: ${templateFiles[template.id].name}`
+                          : '上传Excel文件'}
+                      </span>
+                    </Button>
+                  </div>
+
+                  {/* 文件路径选择区域 */}
+                  <div className="mt-3">
+                    <h5 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
+                      <FileText className="h-4 w-4" />
+                      文件路径选择
+                    </h5>
+                    <FilePathSelector
+                      templateId={template.id}
+                      filePath={template.filePath}
+                      onFileSelect={async (file) => {
+                        await handleFileUpload(template.id, file);
+                        setShowSaveSuccess('文件已选择，字段匹配已刷新');
+                        setTimeout(() => setShowSaveSuccess(null), 3000);
+                      }}
+                      onFilePathChange={(path) => {
+                        const updatedTemplates = historyTemplates.map((temp) =>
+                          temp.id === template.id
+                            ? { ...temp, filePath: path, updatedAt: new Date().toISOString() }
+                            : temp
+                        );
+                        setHistoryTemplates(updatedTemplates);
+                        localStorage.setItem(
+                          'feishuHistoryTemplates',
+                          JSON.stringify(updatedTemplates)
+                        );
+                        console.log(
+                          `✅ [历史模版] 已更新模版 "${template.name}" 的文件路径: ${path}`
+                        );
+                      }}
+                    />
+                  </div>
+
+                  {/* 文件上传状态提示 */}
+                  {templateFiles[template.id] ? (
+                    <div className="p-3 bg-blue-50 dark:bg-blue-900/30 rounded-xl transition-all duration-200">
+                      <p className="text-sm text-blue-800 dark:text-blue-200 font-medium">
+                        ✅ 文件已上传：
+                        <span className="font-medium ml-1">
+                          {templateFiles[template.id]?.name}
+                        </span>
+                      </p>
+                      {templateSheetNames[template.id] && (
+                        <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
+                          📄 识别到 {templateSheetNames[template.id].length} 个 Sheet：
+                          {templateSheetNames[template.id].join(', ')}
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="p-3 bg-gray-100 dark:bg-gray-800 rounded-xl transition-all duration-200">
+                      <p className="text-sm text-gray-800 dark:text-gray-200 font-medium">
+                        ⚠️ 未上传Excel文件
+                      </p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                        请点击上方"上传Excel文件"按钮上传文件
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Sheet选择区域（文件上传后显示） */}
+                  {template.tableToSheetMapping &&
+                    Object.keys(template.tableToSheetMapping).length > 0 &&
+                    templateFiles[template.id] &&
+                    templateSheetNames[template.id] && (
+                      <div
+                        className={`p-4 rounded-xl ${
+                          hasSheetMappingErrors
+                            ? 'bg-gray-200 dark:bg-gray-800'
+                            : 'bg-gray-50 dark:bg-gray-800/50'
+                        } transition-all duration-200`}
+                      >
+                        <div className="flex items-center justify-between mb-3">
+                          <p
+                            className={`text-sm font-medium ${
+                              hasSheetMappingErrors
+                                ? 'text-gray-800 dark:text-gray-200'
+                                : 'text-gray-900 dark:text-white'
+                            }`}
+                          >
+                            {hasSheetMappingErrors
+                              ? '⚠️ 工作表配置存在问题'
+                              : '📊 工作表配置'}
+                          </p>
+                          <div className="flex items-center gap-2">
+                            {/* 修改配置下拉菜单 */}
+                            <DropdownMenu
+                              open={showSheetMappingDropdown === template.id}
+                              onOpenChange={(open) =>
+                                setShowSheetMappingDropdown(open ? template.id : null)
+                              }
+                            >
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-8 px-3 text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200 transition-colors"
+                                >
+                                  <Settings className="h-3.5 w-3.5 mr-1" />
+                                  修改配置
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-80 max-h-96 overflow-y-auto">
+                                <DropdownMenuLabel className="text-sm font-medium">
+                                  选择历史子表配置
+                                </DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                {historyTemplates.map((t) => {
+                                  const sheetMappingCount = t.tableToSheetMapping
+                                    ? Object.keys(t.tableToSheetMapping).length
+                                    : 0;
+                                  return (
+                                    <DropdownMenuItem
+                                      key={t.id}
+                                      onClick={() => {
+                                        // 应用该模版的子表配置到当前模版
+                                        if (t.tableToSheetMapping) {
+                                          const updatedTemplates = historyTemplates.map((temp) =>
+                                            temp.id === template.id
+                                              ? {
+                                                  ...temp,
+                                                  tableToSheetMapping: {
+                                                    ...t.tableToSheetMapping,
+                                                  },
+                                                }
+                                              : temp
+                                          );
+                                          setHistoryTemplates(updatedTemplates);
+                                          localStorage.setItem(
+                                            'feishuHistoryTemplates',
+                                            JSON.stringify(updatedTemplates)
+                                          );
+                                          console.log(
+                                            `✅ [历史模版] 已应用模版 "${t.name}" 的子表配置到 "${template.name}"`
+                                          );
+                                        }
+                                        setShowSheetMappingDropdown(null);
+                                      }}
+                                      className="cursor-pointer py-3"
+                                    >
+                                      <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2 mb-1">
+                                          <FileSpreadsheet className="h-4 w-4 text-blue-600 flex-shrink-0" />
+                                          <span className="text-sm font-medium text-gray-900 dark:text-white">
+                                            {t.name}
+                                          </span>
+                                          {t.id === template.id && (
+                                            <span className="text-xs bg-blue-100 dark:bg-blue-900/50 px-2 py-0.5 rounded-xl text-blue-700 dark:text-blue-300">
+                                              当前
+                                            </span>
+                                          )}
+                                        </div>
+                                        <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
+                                          <span>{sheetMappingCount} 个子表配置</span>
+                                          <span>•</span>
+                                          <span className="truncate max-w-[120px]">
+                                            {t.remark || '无备注'}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    </DropdownMenuItem>
+                                  );
+                                })}
+                                {historyTemplates.length === 0 && (
+                                  <div className="px-3 py-4 text-sm text-gray-500 dark:text-gray-400 text-center">
+                                    暂无历史模版
+                                  </div>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={async () => {
+                                await refreshFieldMatches(template);
+                                setShowSaveSuccess('字段匹配已刷新');
+                                setTimeout(() => setShowSaveSuccess(null), 3000);
+                              }}
+                              className="h-8 px-3 text-xs text-blue-700 hover:text-blue-900 dark:text-blue-300 dark:hover:text-blue-100 transition-colors"
+                            >
+                              <Loader2 className="h-3.5 w-3.5 mr-1" />
+                              刷新
+                            </Button>
+                            <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                    // 手动保存当前配置
+                                    const updatedTemplates = historyTemplates.map((temp) =>
+                                      temp.id === template.id ? template : temp
+                                    );
+                                    setHistoryTemplates(updatedTemplates);
+                                    localStorage.setItem(
+                                      'feishuHistoryTemplates',
+                                      JSON.stringify(updatedTemplates)
+                                    );
+                                    setShowSaveSuccess('配置已保存');
+                                    setTimeout(() => setShowSaveSuccess(null), 3000);
+                                  }}
+                                  className="h-8 px-3 text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200 transition-colors"
+                                >
+                                  <Check className="h-3.5 w-3.5 mr-1" />
+                                  保存
+                                </Button>
+                          </div>
+                        </div>
+                        {hasSheetMappingErrors && (
+                          <p className="text-sm text-gray-700 dark:text-gray-300 mb-3">
+                            ⚠️ 部分工作表的Sheet映射存在问题，请检查配置
+                          </p>
+                        )}
+                        <div className="space-y-3">
+                          {(template.selectedTableIds || []).map((tableId: string) => {
+                            const table = tables.find((t) => t.id === tableId);
+                            const savedSheet = template.tableToSheetMapping?.[tableId];
+                            const sheetNames = templateSheetNames[template.id] || [];
+                            const sheetExists = savedSheet
+                              ? sheetNames.some((sheet) => sheet.toLowerCase() === savedSheet.toLowerCase())
+                              : false;
+                            const matches = template.fieldMatchResults?.[tableId] || [];
+                            const matchedCount = matches.filter((m: any) => m.matched).length;
+                            const unmatchedCount = matches.filter((m: any) => !m.matched)
+                              .length;
+
+                            if (!savedSheet) return null;
+
+                            const hasError = !sheetExists || matchedCount === 0;
+
+                            return (
+                              <div
+                                key={tableId}
+                                className={`p-3 rounded-xl ${
+                                  hasError
+                                    ? 'bg-gray-200 dark:bg-gray-800'
+                                    : 'bg-gray-50 dark:bg-gray-800/50'
+                                } transition-all duration-200`}
+                              >
+                                <div className="flex items-center justify-between mb-2">
+                                  <div className="flex items-center gap-3 text-xs flex-1">
+                                    <DropdownMenu
+                                      open={showTableSelectorDropdown === `${template.id}-${tableId}`}
+                                      onOpenChange={(open) =>
+                                        setShowTableSelectorDropdown(open ? `${template.id}-${tableId}` : null)
+                                      }
+                                    >
+                                      <DropdownMenuTrigger asChild>
+                                        <Button
+                                          type="button"
+                                          variant="ghost"
+                                          size="sm"
+                                          className="h-auto px-3 py-1.5 text-left hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-xl transition-all cursor-pointer bg-gray-100 dark:bg-gray-800"
+                                        >
+                                          <span
+                                            className={`font-medium min-w-0 flex-1 truncate ${
+                                              hasError
+                                                ? 'text-gray-800 dark:text-gray-200'
+                                                : 'text-gray-900 dark:text-white'
+                                            }`}
+                                          >
+                                            {table?.name || tableId}
+                                          </span>
+                                          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="ml-1 flex-shrink-0 text-blue-600">
+                                            <path d="m6 9 6 6 6-6"/>
+                                          </svg>
+                                        </Button>
+                                      </DropdownMenuTrigger>
+                                      <DropdownMenuContent align="start" className="w-72 max-h-60 overflow-y-auto">
+                                        <DropdownMenuLabel className="text-sm font-medium">
+                                          选择工作表
+                                        </DropdownMenuLabel>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem
+                                          onClick={() => {
+                                            setCurrentTemplateForCreate(template);
+                                            setShowCreateTableDialog(true);
+                                            setShowTableSelectorDropdown(null);
                                           }}
-                                          className="cursor-pointer py-2"
+                                          className="cursor-pointer py-3 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50"
                                         >
                                           <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-2">
-                                              <FileSpreadsheet className="h-3 w-3 text-purple-600 flex-shrink-0" />
-                                              <span className="text-sm font-medium text-gray-900 dark:text-white">
-                                                {t.name}
+                                              <Plus className="h-4 w-4 text-blue-600 flex-shrink-0" />
+                                              <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
+                                                新建工作表
                                               </span>
-                                              {t.id === tableId && (
-                                                <span className="text-xs bg-blue-100 dark:bg-blue-900 px-1 py-0.5 rounded text-blue-700 dark:text-blue-300">
+                                            </div>
+                                            <div className="text-xs text-blue-600 dark:text-blue-400 mt-0.5">
+                                              创建新的飞书多维表格工作表
+                                            </div>
+                                          </div>
+                                        </DropdownMenuItem>
+                                        <DropdownMenuSeparator />
+                                        {tables.map((t) => (
+                                          <DropdownMenuItem
+                                            key={t.id}
+                                            onClick={() => {
+                                              const updatedTemplates = historyTemplates.map((temp) =>
+                                                temp.id === template.id
+                                                  ? {
+                                                      ...temp,
+                                                      selectedTableIds: [t.id],
+                                                      selectedTableNames: [t.name],
+                                                      tableToSheetMapping: {
+                                                        ...temp.tableToSheetMapping,
+                                                        [t.id]: Object.values(temp.tableToSheetMapping || {})[0] || ''
+                                                      }
+                                                    }
+                                                : temp
+                                              );
+                                              setHistoryTemplates(updatedTemplates);
+                                              localStorage.setItem(
+                                                'feishuHistoryTemplates',
+                                                JSON.stringify(updatedTemplates)
+                                              );
+                                              console.log(
+                                                `✅ [历史模版] 已将模版 "${template.name}" 的工作表从 "${table?.name}" 修改为 "${t.name}"`
+                                              );
+                                              setShowTableSelectorDropdown(null);
+                                              setShowSaveSuccess(`工作表已更新为 "${t.name}"`);
+                                              setTimeout(() => setShowSaveSuccess(null), 3000);
+
+                                              // 自动刷新字段匹配
+                                              const updatedTemplate = updatedTemplates.find((temp) => temp.id === template.id);
+                                              if (updatedTemplate) {
+                                                console.log(`🔄 [选择工作表] 自动刷新字段匹配`);
+                                                refreshFieldMatches(updatedTemplate);
+                                              }
+                                            }}
+                                            className="cursor-pointer py-3"
+                                          >
+                                            <div className="flex-1 min-w-0">
+                                              <div className="flex items-center gap-2">
+                                                <FileSpreadsheet className="h-4 w-4 text-purple-600 flex-shrink-0" />
+                                                <span className="text-sm font-medium text-gray-900 dark:text-white">
+                                                  {t.name}
+                                                </span>
+                                                {t.id === tableId && (
+                                                  <span className="text-xs bg-blue-100 dark:bg-blue-900 px-2 py-0.5 rounded text-blue-700 dark:text-blue-300">
+                                                    当前
+                                                  </span>
+                                                )}
+                                              </div>
+                                              <div className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
+                                                ID: {t.id}
+                                              </div>
+                                            </div>
+                                          </DropdownMenuItem>
+                                        ))}
+                                      </DropdownMenuContent>
+                                    </DropdownMenu>
+                                    <span className="text-purple-600 font-medium">→</span>
+                                    <DropdownMenu
+                                      open={showSheetSelectorDropdown === `${template.id}-${tableId}`}
+                                      onOpenChange={(open) =>
+                                        setShowSheetSelectorDropdown(open ? `${template.id}-${tableId}` : null)
+                                      }
+                                    >
+                                      <DropdownMenuTrigger asChild>
+                                        <Button
+                                          type="button"
+                                          variant="ghost"
+                                          size="sm"
+                                          className="h-auto px-3 py-1.5 text-left hover:bg-purple-100 dark:hover:bg-purple-900/30 border-2 border-purple-300 dark:border-purple-700 rounded transition-all cursor-pointer"
+                                        >
+                                          <span
+                                            className={`font-medium ${
+                                              sheetExists
+                                                ? 'text-purple-900 dark:text-purple-100'
+                                                : 'text-red-900 dark:text-red-100'
+                                            }`}
+                                          >
+                                            {savedSheet} {!sheetExists && '(不存在)'}
+                                          </span>
+                                          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="ml-1 flex-shrink-0 text-purple-600">
+                                            <path d="m6 9 6 6 6-6"/>
+                                          </svg>
+                                        </Button>
+                                      </DropdownMenuTrigger>
+                                      <DropdownMenuContent align="end" className="w-56 max-h-60 overflow-y-auto">
+                                        <DropdownMenuLabel className="text-sm font-medium">
+                                          选择 Sheet
+                                        </DropdownMenuLabel>
+                                        <DropdownMenuSeparator />
+                                        {sheetNames.map((sheetName) => (
+                                          <DropdownMenuItem
+                                            key={sheetName}
+                                            onClick={() => {
+                                              const updatedTemplates = historyTemplates.map((temp) =>
+                                                temp.id === template.id
+                                                  ? {
+                                                      ...temp,
+                                                      tableToSheetMapping: {
+                                                        ...temp.tableToSheetMapping,
+                                                        [tableId]: sheetName,
+                                                      },
+                                                    }
+                                                : temp
+                                              );
+                                              setHistoryTemplates(updatedTemplates);
+                                              localStorage.setItem(
+                                                'feishuHistoryTemplates',
+                                                JSON.stringify(updatedTemplates)
+                                              );
+                                              console.log(
+                                                `✅ [历史模版] 已将模版 "${template.name}" 的工作表 "${table?.name}" 的 Sheet 从 "${savedSheet}" 修改为 "${sheetName}"`
+                                              );
+                                              setShowSheetSelectorDropdown(null);
+                                              setShowSaveSuccess(`Sheet 已更新为 "${sheetName}"`);
+                                              setTimeout(() => setShowSaveSuccess(null), 3000);
+                                            }}
+                                            className="cursor-pointer py-3"
+                                          >
+                                            <div className="flex items-center gap-2">
+                                              <FileSpreadsheet className="h-4 w-4 text-purple-600 flex-shrink-0" />
+                                              <span className="text-sm font-medium text-gray-900 dark:text-white">
+                                                {sheetName}
+                                              </span>
+                                              {sheetName === savedSheet && (
+                                                <span className="text-xs bg-blue-100 dark:bg-blue-900 px-2 py-0.5 rounded text-blue-700 dark:text-blue-300">
                                                   当前
                                                 </span>
                                               )}
                                             </div>
-                                            <div className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
-                                              ID: {t.id}
-                                            </div>
+                                          </DropdownMenuItem>
+                                        ))}
+                                        {sheetNames.length === 0 && (
+                                          <div className="px-3 py-4 text-sm text-gray-500 dark:text-gray-400 text-center">
+                                            暂无 Sheet，请先上传文件
                                           </div>
-                                        </DropdownMenuItem>
-                                      ))}
-                                    </DropdownMenuContent>
-                                  </DropdownMenu>
-                                  <span className="text-purple-600">→</span>
-                                  <DropdownMenu
-                                    open={showSheetSelectorDropdown === `${template.id}-${tableId}`}
-                                    onOpenChange={(open) =>
-                                      setShowSheetSelectorDropdown(open ? `${template.id}-${tableId}` : null)
-                                    }
-                                  >
-                                    <DropdownMenuTrigger asChild>
-                                      <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="sm"
-                                        className="h-auto px-2 py-0.5 text-left hover:bg-purple-100 dark:hover:bg-purple-900/30 border-2 border-purple-300 dark:border-purple-700 rounded transition-all cursor-pointer"
-                                      >
-                                        <span
-                                          className={`${
-                                            sheetExists
-                                              ? 'text-purple-900 dark:text-purple-100'
-                                              : 'text-red-900 dark:text-red-100'
-                                          }`}
-                                        >
-                                          {savedSheet} {!sheetExists && '(不存在)'}
-                                        </span>
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="ml-1 flex-shrink-0 text-purple-600">
-                                          <path d="m6 9 6 6 6-6"/>
-                                        </svg>
-                                      </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end" className="w-48 max-h-60 overflow-y-auto">
-                                      <DropdownMenuLabel className="text-xs font-medium">
-                                        选择 Sheet
-                                      </DropdownMenuLabel>
-                                      <DropdownMenuSeparator />
-                                      {sheetNames.map((sheetName) => (
-                                        <DropdownMenuItem
-                                          key={sheetName}
-                                          onClick={() => {
-                                            const updatedTemplates = historyTemplates.map((temp) =>
-                                              temp.id === template.id
-                                                ? {
-                                                    ...temp,
-                                                    tableToSheetMapping: {
-                                                      ...temp.tableToSheetMapping,
-                                                      [tableId]: sheetName,
-                                                    },
-                                                  }
-                                                : temp
-                                            );
-                                            setHistoryTemplates(updatedTemplates);
-                                            localStorage.setItem(
-                                              'feishuHistoryTemplates',
-                                              JSON.stringify(updatedTemplates)
-                                            );
-                                            console.log(
-                                              `✅ [历史模版] 已将模版 "${template.name}" 的工作表 "${table?.name}" 的 Sheet 从 "${savedSheet}" 修改为 "${sheetName}"`
-                                            );
-                                            setShowSheetSelectorDropdown(null);
-                                            setShowSaveSuccess(`Sheet 已更新为 "${sheetName}"`);
-                                            setTimeout(() => setShowSaveSuccess(null), 3000);
-                                          }}
-                                          className="cursor-pointer py-2"
-                                        >
-                                          <div className="flex items-center gap-2">
-                                            <FileSpreadsheet className="h-3 w-3 text-purple-600 flex-shrink-0" />
-                                            <span className="text-sm font-medium text-gray-900 dark:text-white">
-                                              {sheetName}
-                                            </span>
-                                            {sheetName === savedSheet && (
-                                              <span className="text-xs bg-blue-100 dark:bg-blue-900 px-1 py-0.5 rounded text-blue-700 dark:text-blue-300">
-                                                当前
-                                              </span>
-                                            )}
-                                          </div>
-                                        </DropdownMenuItem>
-                                      ))}
-                                      {sheetNames.length === 0 && (
-                                        <div className="px-2 py-3 text-xs text-gray-500 dark:text-gray-400 text-center">
-                                          暂无 Sheet，请先上传文件
-                                        </div>
-                                      )}
-                                    </DropdownMenuContent>
-                                  </DropdownMenu>
+                                        )}
+                                      </DropdownMenuContent>
+                                    </DropdownMenu>
+                                  </div>
                                 </div>
-                              </div>
-                              <div className="flex items-center gap-2 text-xs">
-                                <span className="flex items-center gap-1">
+                              <div className="flex items-center gap-3 text-sm flex-wrap">
+                                <span className="flex items-center gap-2">
                                   <span
-                                    className={`w-2 h-2 rounded-full ${
+                                    className={`w-2.5 h-2.5 rounded-full ${
                                       matchedCount > 0 ? 'bg-green-500' : 'bg-red-500'
                                     }`}
                                   ></span>
-                                  <span className={matchedCount > 0 ? 'text-green-600' : 'text-red-600'}>
+                                  <span className={`font-medium ${
+                                    matchedCount > 0 ? 'text-green-700 dark:text-green-300' : 'text-red-700 dark:text-red-300'
+                                  }`}>
                                     {matchedCount} 匹配
                                   </span>
                                 </span>
-                                <span className="flex items-center gap-1">
-                                  <span className="w-2 h-2 rounded-full bg-red-500"></span>
-                                  <span className="text-red-600">{unmatchedCount} 未匹配</span>
+                                <span className="flex items-center gap-2">
+                                  <span className="w-2.5 h-2.5 rounded-full bg-yellow-500"></span>
+                                  <span className="font-medium text-yellow-700 dark:text-yellow-300">
+                                    {unmatchedCount} 未匹配
+                                  </span>
                                 </span>
                                 <Button
                                   type="button"
@@ -1035,12 +1135,12 @@ export function TemplateList({
                                       ? null 
                                       : `${template.id}-${tableId}`
                                   )}
-                                  className="h-6 px-2 text-xs text-purple-700 hover:text-purple-900 dark:text-purple-300 dark:hover:text-purple-100"
+                                  className="h-8 px-3 text-xs text-purple-700 hover:text-purple-900 dark:text-purple-300 dark:hover:text-purple-100 transition-colors"
                                 >
                                   {expandedFieldDetails === `${template.id}-${tableId}` ? '收起' : '展开'}
                                 </Button>
                                 {!sheetExists && (
-                                  <span className="flex items-center gap-1 text-red-600 font-medium">
+                                  <span className="flex items-center gap-1 text-red-700 dark:text-red-300 font-medium">
                                     ⚠️ Sheet不存在
                                   </span>
                                 )}
@@ -1328,7 +1428,7 @@ export function TemplateList({
                           }));
                         }
                       }}
-                      className="w-full text-xs border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-950 py-2"
+                      className="w-full text-xs border-0 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 py-2 bg-gray-50 dark:bg-gray-800 rounded-xl"
                     >
                       <CheckCircle className="h-3.5 w-3.5 mr-1" />
                       同步上传
@@ -1337,17 +1437,17 @@ export function TemplateList({
                     {/* 同步状态提示 */}
                     {templateSyncStatus[template.id] && (
                       <div
-                        className={`p-3 rounded-md ${
+                        className={`p-3 rounded-xl ${
                           templateSyncStatus[template.id].success
-                            ? 'bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800'
-                            : 'bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800'
+                            ? 'bg-blue-50 dark:bg-blue-900/30'
+                            : 'bg-gray-200 dark:bg-gray-800'
                         }`}
                       >
                         <p
                           className={`text-xs ${
                             templateSyncStatus[template.id].success
-                              ? 'text-green-800 dark:text-green-200'
-                              : 'text-red-800 dark:text-red-200'
+                              ? 'text-blue-700 dark:text-blue-300'
+                              : 'text-gray-700 dark:text-gray-300'
                           }`}
                         >
                           {templateSyncStatus[template.id].message}
@@ -1358,8 +1458,10 @@ export function TemplateList({
                 )}
               </div>
             </div>
+              </div>
           );
         })}
+        </div>
       </div>
 
       {/* 新建工作表对话框 */}

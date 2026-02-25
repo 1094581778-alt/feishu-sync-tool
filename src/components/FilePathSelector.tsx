@@ -3,11 +3,19 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Calendar, Clock, Folder, File as FileIcon, Filter, Loader2, X, Check } from 'lucide-react';
+import { Calendar, Clock, Folder, File as FileIcon, Filter, Loader2, X, Check, AlertCircle } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format } from 'date-fns';
+import { 
+  fileSystemService, 
+  environment, 
+  FileSystemEntry,
+  filterFiles as fsFilterFiles,
+  formatFileSize 
+} from '@/services/file-system';
 
+// 兼容类型
 interface FileInfo {
   name: string;
   path: string;
@@ -15,6 +23,18 @@ interface FileInfo {
   createdAt: Date;
   modifiedAt: Date;
   isDirectory: boolean;
+}
+
+// 转换 FileSystemEntry 到 FileInfo
+function convertToFileInfo(entry: FileSystemEntry): FileInfo {
+  return {
+    name: entry.name,
+    path: entry.path,
+    size: entry.size,
+    createdAt: entry.createdAt,
+    modifiedAt: entry.modifiedAt,
+    isDirectory: entry.isDirectory
+  };
 }
 
 interface FilePathSelectorProps {
@@ -32,21 +52,23 @@ export function FilePathSelector({ templateId, filePath: initialFilePath, onFile
   const [error, setError] = useState('');
   const [selectedFile, setSelectedFile] = useState<string>('');
   const [showFileList, setShowFileList] = useState(false);
-  const [timeFilter, setTimeFilter] = useState<'all' | 'today' | 'thisWeek' | 'thisMonth' | 'custom'>('all');
+  const [timeFilter, setTimeFilter] = useState<'all' | 'today' | 'yesterday' | 'thisWeek' | 'thisMonth' | 'custom'>('all');
   const [customDateRange, setCustomDateRange] = useState({ start: new Date(), end: new Date() });
+  const [customTimeRange, setCustomTimeRange] = useState({ start: '00:00', end: '23:59' });
   const [filterType, setFilterType] = useState<'created' | 'modified'>('modified');
+  const [pathPattern, setPathPattern] = useState(''); // 路径匹配模式
 
   // 验证文件路径
-  const validatePath = (path: string): boolean => {
-    if (path.length === 0) {
+  const validatePath = (inputPath: string): boolean => {
+    if (inputPath.length === 0) {
       return false;
     }
 
-    // 检查路径格式
+    // 检查路径格式 - 支持 Windows 路径格式
     const windowsPathRegex = /^[a-zA-Z]:\\(?:[^\\/:*?"<>|\r\n]+\\)*[^\\/:*?"<>|\r\n]*$/;
     const unixPathRegex = /^\/(?:[^\/:*?"<>|\r\n]+\/)*[^\/:*?"<>|\r\n]*$/;
 
-    return windowsPathRegex.test(path) || unixPathRegex.test(path);
+    return windowsPathRegex.test(inputPath) || unixPathRegex.test(inputPath);
   };
 
   // 加载文件列表
@@ -60,51 +82,41 @@ export function FilePathSelector({ templateId, filePath: initialFilePath, onFile
     setError('');
 
     try {
-      // 这里应该使用 Tauri 的文件系统 API 来读取文件列表
-      // 由于是模拟环境，我们创建一些模拟数据
-      const mockFiles: FileInfo[] = [
-        {
-          name: '成交数据-2026_02_23.xlsx',
-          path: `${filePath}/成交数据-2026_02_23.xlsx`,
-          size: 105600,
-          createdAt: new Date('2026-02-23T10:00:00'),
-          modifiedAt: new Date('2026-02-23T10:00:00'),
-          isDirectory: false
-        },
-        {
-          name: '成交数据-2026_02_22.xlsx',
-          path: `${filePath}/成交数据-2026_02_22.xlsx`,
-          size: 102400,
-          createdAt: new Date('2026-02-22T10:00:00'),
-          modifiedAt: new Date('2026-02-22T10:00:00'),
-          isDirectory: false
-        },
-        {
-          name: '成交数据-2026_02_21.xlsx',
-          path: `${filePath}/成交数据-2026_02_21.xlsx`,
-          size: 98500,
-          createdAt: new Date('2026-02-21T10:00:00'),
-          modifiedAt: new Date('2026-02-21T10:00:00'),
-          isDirectory: false
-        },
-        {
-          name: '历史数据',
-          path: `${filePath}/历史数据`,
-          size: 0,
-          createdAt: new Date('2026-02-20T10:00:00'),
-          modifiedAt: new Date('2026-02-20T10:00:00'),
-          isDirectory: true
-        }
-      ];
+      console.log('📁 [FilePathSelector] 加载文件列表:', filePath);
+      console.log('🌐 当前环境:', environment.getDescription());
 
-      // 模拟网络延迟
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // 检查文件系统服务是否可用
+      if (!fileSystemService.isAvailable()) {
+        throw new Error('文件系统服务不可用。当前环境：' + environment.getDescription());
+      }
 
-      setFiles(mockFiles);
+      // 检查路径是否存在
+      const pathExists = await fileSystemService.exists(filePath);
+      if (!pathExists) {
+        throw new Error(`路径不存在: ${filePath}`);
+      }
+
+      // 列出目录内容
+      const entries = await fileSystemService.listDirectory(filePath);
+      const fileInfos = entries.map(convertToFileInfo);
+      
+      console.log('✅ [FilePathSelector] 加载完成，找到文件:', fileInfos.length);
+      setFiles(fileInfos);
       setShowFileList(true);
     } catch (err) {
-      setError('加载文件列表失败，请检查路径是否正确');
-      console.error('加载文件列表失败:', err);
+      const errorMessage = err instanceof Error ? err.message : '加载文件列表失败';
+      
+      // 在浏览器环境中提供更友好的错误信息
+      if (!environment.isTauri && errorMessage.includes('不支持')) {
+        setError('浏览器环境不支持直接列出目录内容。请使用Tauri桌面应用以获得完整功能。');
+      } else {
+        setError(`加载文件列表失败: ${errorMessage}`);
+      }
+      
+      console.error('❌ [FilePathSelector] 加载失败:', err);
+      
+      // 在错误时也显示文件列表（可能是空的）
+      setShowFileList(true);
     } finally {
       setLoading(false);
     }
@@ -117,25 +129,54 @@ export function FilePathSelector({ templateId, filePath: initialFilePath, onFile
       return false;
     }
 
+    // 路径匹配筛选
+    if (pathPattern) {
+      const pattern = new RegExp(pathPattern, 'i');
+      if (!pattern.test(file.name)) {
+        return false;
+      }
+    }
+
     // 时间筛选
     const dateToCheck = filterType === 'created' ? file.createdAt : file.modifiedAt;
     const now = new Date();
 
+    let dateMatch = true;
     switch (timeFilter) {
       case 'today':
-        return dateToCheck.toDateString() === now.toDateString();
+        dateMatch = dateToCheck.toDateString() === now.toDateString();
+        break;
+      case 'yesterday':
+        const yesterday = new Date(now);
+        yesterday.setDate(now.getDate() - 1);
+        dateMatch = dateToCheck.toDateString() === yesterday.toDateString();
+        break;
       case 'thisWeek':
         const weekStart = new Date(now);
         weekStart.setDate(now.getDate() - now.getDay());
-        return dateToCheck >= weekStart;
+        dateMatch = dateToCheck >= weekStart;
+        break;
       case 'thisMonth':
         const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-        return dateToCheck >= monthStart;
+        dateMatch = dateToCheck >= monthStart;
+        break;
       case 'custom':
-        return dateToCheck >= customDateRange.start && dateToCheck <= customDateRange.end;
+        // 结合日期和时间范围
+        const startDateTime = new Date(customDateRange.start);
+        const [startHour, startMinute] = customTimeRange.start.split(':').map(Number);
+        startDateTime.setHours(startHour, startMinute, 0, 0);
+
+        const endDateTime = new Date(customDateRange.end);
+        const [endHour, endMinute] = customTimeRange.end.split(':').map(Number);
+        endDateTime.setHours(endHour, endMinute, 59, 999);
+
+        dateMatch = dateToCheck >= startDateTime && dateToCheck <= endDateTime;
+        break;
       default:
-        return true;
+        dateMatch = true;
     }
+
+    return dateMatch;
   });
 
   // 处理文件选择
@@ -148,24 +189,89 @@ export function FilePathSelector({ templateId, filePath: initialFilePath, onFile
     }
 
     try {
-      // 这里应该使用 Tauri 的文件系统 API 来读取文件
-      // 由于是模拟环境，我们创建一个模拟文件
-      const mockFile = new File([''], file.name, { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-      onFileSelect(mockFile);
+      console.log('📄 [FilePathSelector] 选择文件:', file.name, file.path);
+      
+      if (environment.isTauri) {
+        // Tauri环境：读取实际文件内容
+        const fileContent = await fileSystemService.readFile(file.path, { asArrayBuffer: true });
+        const blob = new Blob([fileContent]);
+        const nativeFile = new File([blob], file.name, {
+          type: getMimeType(file.name)
+        });
+        
+        onFileSelect(nativeFile);
+      } else {
+        // 浏览器环境：使用文件选择器
+        // 注意：浏览器无法直接通过路径读取文件，所以需要用户选择文件
+        // 这里我们触发一个文件选择器，然后传递选择的文件
+        const selected = await fileSystemService.openFileDialog({
+          multiple: false,
+          filters: [
+            {
+              name: 'Excel文件',
+              extensions: ['xlsx', 'xls']
+            }
+          ]
+        });
+        
+        if (selected && typeof selected === 'string') {
+          // 用户选择了文件，但我们无法直接读取内容
+          // 创建一个模拟的File对象
+          const mockFile = new File([''], file.name, { 
+            type: getMimeType(file.name),
+            lastModified: file.modifiedAt.getTime()
+          });
+          onFileSelect(mockFile);
+        } else {
+          // 用户取消了选择
+          return;
+        }
+      }
+      
       setSelectedFile(file.name);
       setError('');
+      console.log('✅ [FilePathSelector] 文件选择成功:', file.name);
     } catch (err) {
-      setError('选择文件失败');
-      console.error('选择文件失败:', err);
+      const errorMessage = err instanceof Error ? err.message : '选择文件失败';
+      setError(`选择文件失败: ${errorMessage}`);
+      console.error('❌ [FilePathSelector] 选择文件失败:', err);
+    }
+  };
+  
+  // 获取文件的MIME类型
+  const getMimeType = (fileName: string): string => {
+    const extension = fileName.toLowerCase().split('.').pop();
+    switch (extension) {
+      case 'xlsx':
+        return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+      case 'xls':
+        return 'application/vnd.ms-excel';
+      case 'csv':
+        return 'text/csv';
+      case 'json':
+        return 'application/json';
+      default:
+        return 'application/octet-stream';
     }
   };
 
   // 处理路径变化
-  const handlePathChange = (path: string) => {
-    setFilePath(path);
-    onPathChange?.(path);
-    onFilePathChange?.(path);
+  const handlePathChange = (inputPath: string) => {
+    setFilePath(inputPath);
+    onPathChange?.(inputPath);
+    onFilePathChange?.(inputPath);
   };
+
+  // 自动加载文件列表 - 使用 debounce 效果
+  useEffect(() => {
+    if (filePath && validatePath(filePath)) {
+      const timer = setTimeout(() => {
+        loadFiles();
+      }, 500); // 500ms 后自动加载
+
+      return () => clearTimeout(timer);
+    }
+  }, [filePath]);
 
 
 
@@ -204,17 +310,29 @@ export function FilePathSelector({ templateId, filePath: initialFilePath, onFile
 
       {/* 错误提示 */}
       {error && (
-        <div className="p-2 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-md">
-          <p className="text-xs text-red-800 dark:text-red-200 flex items-center gap-1">
+        <div className="p-2 bg-gray-200 dark:bg-gray-800 rounded-xl">
+          <p className="text-xs text-gray-700 dark:text-gray-300 flex items-center gap-1">
             <X className="h-3 w-3" />
             {error}
           </p>
         </div>
       )}
 
-      {/* 时间筛选器 */}
+      {/* 筛选器 */}
       {showFileList && (
         <div className="flex flex-wrap items-center gap-2 text-xs">
+          {/* 路径匹配筛选 */}
+          <div className="relative w-full sm:w-auto flex-1">
+            <Input
+              type="text"
+              placeholder="文件名匹配..."
+              value={pathPattern}
+              onChange={(e) => setPathPattern(e.target.value)}
+              className="h-7 text-xs"
+            />
+          </div>
+
+          {/* 时间筛选 */}
           <Select value={timeFilter} onValueChange={(value) => setTimeFilter(value as any)}>
             <SelectTrigger className="w-[120px] h-7">
               <SelectValue placeholder="时间筛选" />
@@ -222,11 +340,31 @@ export function FilePathSelector({ templateId, filePath: initialFilePath, onFile
             <SelectContent>
               <SelectItem value="all">全部时间</SelectItem>
               <SelectItem value="today">今天</SelectItem>
+              <SelectItem value="yesterday">昨天</SelectItem>
               <SelectItem value="thisWeek">本周</SelectItem>
               <SelectItem value="thisMonth">本月</SelectItem>
               <SelectItem value="custom">自定义</SelectItem>
             </SelectContent>
           </Select>
+
+          {/* 时间范围选择（仅自定义时显示） */}
+          {timeFilter === 'custom' && (
+            <div className="flex items-center gap-2">
+              <Input
+                type="time"
+                value={customTimeRange.start}
+                onChange={(e) => setCustomTimeRange(prev => ({ ...prev, start: e.target.value }))}
+                className="w-[80px] h-7 text-xs"
+              />
+              <span>至</span>
+              <Input
+                type="time"
+                value={customTimeRange.end}
+                onChange={(e) => setCustomTimeRange(prev => ({ ...prev, end: e.target.value }))}
+                className="w-[80px] h-7 text-xs"
+              />
+            </div>
+          )}
 
           <Select value={filterType} onValueChange={(value) => setFilterType(value as any)}>
             <SelectTrigger className="w-[100px] h-7">
@@ -242,7 +380,7 @@ export function FilePathSelector({ templateId, filePath: initialFilePath, onFile
 
       {/* 文件列表 */}
       {showFileList && (
-        <Card className="p-2 max-h-60 overflow-y-auto">
+        <div className="bg-gray-50 dark:bg-gray-900/50 rounded-xl border-0 shadow-md hover:shadow-lg transition-all duration-300 p-2 max-h-60 overflow-y-auto">
           <div className="space-y-1">
             {filteredFiles.length === 0 ? (
               <p className="text-xs text-gray-500 dark:text-gray-400 text-center py-4">
@@ -252,7 +390,7 @@ export function FilePathSelector({ templateId, filePath: initialFilePath, onFile
               filteredFiles.map((file) => (
                 <div
                   key={file.path}
-                  className={`p-2 rounded-md flex items-center justify-between cursor-pointer transition-colors ${selectedFile === file.name ? 'bg-blue-100 dark:bg-blue-900' : 'hover:bg-gray-100 dark:hover:bg-gray-800'}`}
+                  className={`p-2 rounded-xl flex items-center justify-between cursor-pointer transition-colors ${selectedFile === file.name ? 'bg-blue-100 dark:bg-blue-900/50' : 'hover:bg-gray-100 dark:hover:bg-gray-800'}`}
                   onClick={() => handleFileSelect(file)}
                 >
                   <div className="flex items-center gap-2 flex-1">
@@ -273,13 +411,13 @@ export function FilePathSelector({ templateId, filePath: initialFilePath, onFile
               ))
             )}
           </div>
-        </Card>
+        </div>
       )}
 
       {/* 选择结果 */}
       {selectedFile && (
-        <div className="p-2 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-md">
-          <p className="text-xs text-green-800 dark:text-green-200 flex items-center gap-1">
+        <div className="p-2 bg-blue-50 dark:bg-blue-900/30 rounded-xl">
+          <p className="text-xs text-blue-700 dark:text-blue-300 flex items-center gap-1">
             <Check className="h-3 w-3" />
             已选择文件: {selectedFile}
           </p>

@@ -4,3 +4,4 @@
 
 export * from './feishu';
 export * from './tauri';
+export * from './file-system';

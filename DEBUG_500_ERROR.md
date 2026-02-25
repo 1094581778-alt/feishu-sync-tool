@@ -216,8 +216,8 @@ const retryUpload = async (formData: FormData, maxRetries = 3) => {
 在部署平台的环境变量配置界面中手动添加：
 
 ```
-FEISHU_APP_ID=cli_a90a9d996078dbd9
-FEISHU_APP_SECRET=5N3YZhsGq2exd036bRZVNb6WcsrK2NJQ
+FEISHU_APP_ID=YOUR_APP_ID
+FEISHU_APP_SECRET=YOUR_APP_SECRET
 ```
 
 然后重新部署。

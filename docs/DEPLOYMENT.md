@@ -227,6 +227,35 @@ jobs:
 2. 检查变量名拼写
 3. 重启开发服务器
 
+## 📦 部署检查功能
+
+### 概述
+
+本项目包含一个部署检查功能，用于在构建Windows桌面版时检测是否已经部署过该应用。
+
+### 工作原理
+
+1. **构建时检查**：运行 `build-installer.bat` 时，脚本会通过PowerShell检查Windows注册表中的以下位置：
+   - `HKLM\Software\Microsoft\Windows\CurrentVersion\Uninstall`
+   - `HKLM\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall`
+   - `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall`
+   - `HKLM\Software\Microsoft\Windows\CurrentVersion\App Paths`
+
+2. **运行时检查**：应用启动时，会通过Tauri调用Rust函数检查相同的注册表位置。
+
+3. **UI 指示**：如果检测到之前的部署，应用顶部导航栏会显示一个红色的部署检查指示器。
+
+### 处理部署冲突
+
+如果检测到之前的部署，构建过程会停止并提示用户卸载旧版本。这是为了避免版本冲突和确保应用正常运行。
+
+### 技术实现
+
+- **Rust 函数**：`src-tauri/src/main.rs` 中的 `check_previous_deployment` 函数
+- **前端集成**：`src/services/tauri.ts` 中的 `checkPreviousDeployment` 方法
+- **构建脚本**：`build-installer.bat` 中的PowerShell部署检查逻辑
+- **UI 组件**：`src/app/page.tsx` 中的部署检查指示器
+
 ## 📞 支持
 
 如遇到问题，请：

@@ -1,12 +1,19 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+#[cfg(target_os = "windows")]
+extern crate winreg;
+
+#[cfg(target_os = "windows")]
+use winreg::{enums::*, RegKey};
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             greet,
-            get_app_version
+            get_app_version,
+            check_previous_deployment
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -20,4 +27,61 @@ fn greet(name: &str) -> String {
 #[tauri::command]
 fn get_app_version() -> String {
     env!("CARGO_PKG_VERSION").to_string()
+}
+
+#[tauri::command]
+async fn check_previous_deployment() -> Result<bool, String> {
+    #[cfg(target_os = "windows")] {
+        let uninstall_keys = vec![
+            "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall",
+            "SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall"
+        ];
+        
+        let app_paths_key = "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\App Paths";
+        let app_name = "飞书数据同步工具";
+        let exe_name = "feishu_sync_tool.exe";
+        
+        for key_path in &uninstall_keys {
+            if let Ok(hklm) = RegKey::predef(HKEY_LOCAL_MACHINE)
+                .open_subkey(key_path)
+            {
+                for subkey in hklm.enum_keys() {
+                    if let Ok(subkey_name) = subkey {
+                        if subkey_name.contains(app_name) {
+                            return Ok(true);
+                        }
+                    }
+                }
+            }
+            
+            if let Ok(hkcu) = RegKey::predef(HKEY_CURRENT_USER)
+                .open_subkey(key_path)
+            {
+                for subkey in hkcu.enum_keys() {
+                    if let Ok(subkey_name) = subkey {
+                        if subkey_name.contains(app_name) {
+                            return Ok(true);
+                        }
+                    }
+                }
+            }
+        }
+        
+        if let Ok(hklm) = RegKey::predef(HKEY_LOCAL_MACHINE)
+            .open_subkey(app_paths_key)
+        {
+            for subkey in hklm.enum_keys() {
+                if let Ok(subkey_name) = subkey {
+                    if subkey_name == exe_name {
+                        return Ok(true);
+                    }
+                }
+            }
+        }
+        
+        Ok(false)
+    }
+    #[cfg(not(target_os = "windows"))] {
+        Ok(false)
+    }
 }

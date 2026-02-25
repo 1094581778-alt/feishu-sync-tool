@@ -6,8 +6,8 @@
   "build": {
     "beforeDevCommand": "pnpm dev",
     "devUrl": "http://localhost:5000",
-    "beforeBuildCommand": "pnpm build",
-    "frontendDist": "../.next"
+    "beforeBuildCommand": "",
+    "frontendDist": "dist/server/app"
   },
   "app": {
     "windows": [
@@ -27,13 +27,15 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": "default-src * 'unsafe-inline' 'unsafe-eval';"
     }
   },
   "bundle": {
     "active": true,
-    "targets": ["msi", "nsis", "app"],
-
+    "targets": ["nsis"],
+    "icon": [
+      "icons/icon.ico"
+    ],
     "publisher": "Feishu Sync Tool",
     "shortDescription": "飞书表格数据同步管理工具",
     "longDescription": "一个功能强大的飞书表格数据同步工具，支持Excel文件上传、字段匹配、批量同步等功能。",

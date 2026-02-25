@@ -17,8 +17,8 @@ bash -c '. scripts/build.sh; echo "FEISHU_APP_ID=$FEISHU_APP_ID"; echo "FEISHU_A
 ```
 
 **结果**:
-- ✅ `FEISHU_APP_ID`: cli_a90a9d996078dbd9
-- ✅ `FEISHU_APP_SECRET`: 5N3Y***2NJQ
+- ✅ `FEISHU_APP_ID`: YOUR_APP_ID
+- ✅ `FEISHU_APP_SECRET`: YOUR_APP_SECRET
 - ✅ 环境变量加载成功
 
 ### ✅ 服务状态
@@ -144,8 +144,8 @@ console.log('📦 [请求参数]', {
 1. 打开应用
 2. 点击右上角"飞书配置"按钮
 3. 输入以下信息：
-   - **飞书 App ID**: `cli_a90a9d996078dbd9`
-   - **飞书 App Secret**: `5N3YZhsGq2exd036bRZVNb6WcsrK2NJQ`
+   - **飞书 App ID**: `YOUR_APP_ID`
+   - **飞书 App Secret**: `YOUR_APP_SECRET`
 4. 点击"保存"
 5. 重新尝试同步
 
@@ -166,8 +166,8 @@ console.log('📦 [请求参数]', {
    - `FEISHU_APP_SECRET`
 5. 如果不存在，手动添加：
    ```
-   FEISHU_APP_ID=cli_a90a9d996078dbd9
-   FEISHU_APP_SECRET=5N3YZhsGq2exd036bRZVNb6WcsrK2NJQ
+   FEISHU_APP_ID=YOUR_APP_ID
+   FEISHU_APP_SECRET=YOUR_APP_SECRET
    ```
 6. 点击"重新部署"
 

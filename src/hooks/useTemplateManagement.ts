@@ -160,7 +160,7 @@ export function useTemplateManagement({
         [template.id]: workbook.SheetNames,
       }));
 
-      for (const tableId of template.selectedTableIds) {
+      for (const tableId of (template.selectedTableIds || [])) {
         try {
           // 获取飞书字段
           const data = await fetchFeishuFields(template, tableId, feishuAppId, feishuAppSecret);

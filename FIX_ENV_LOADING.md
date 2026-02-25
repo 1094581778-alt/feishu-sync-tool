@@ -96,14 +96,14 @@ load_env_vars() {
 `.coze` 文件的 `[env]` 部分使用 TOML 格式：
 ```toml
 [env]
-FEISHU_APP_ID = "cli_a90a9d996078dbd9"
-FEISHU_APP_SECRET = "5N3YZhsGq2exd036bRZVNb6WcsrK2NJQ"
+FEISHU_APP_ID = "YOUR_APP_ID"
+FEISHU_APP_SECRET = "YOUR_APP_SECRET"
 ```
 
 需要转换为环境变量格式：
 ```bash
-FEISHU_APP_ID=cli_a90a9d996078dbd9
-FEISHU_APP_SECRET=5N3YZhsGq2exd036bRZVNb6WcsrK2NJQ
+FEISHU_APP_ID=YOUR_APP_ID
+FEISHU_APP_SECRET=YOUR_APP_SECRET
 ```
 
 **转换步骤**：
@@ -247,8 +247,8 @@ grep "飞书配置"
 1. 登录部署平台
 2. 找到应用设置 → 环境变量
 3. 添加以下变量：
-   - `FEISHU_APP_ID=cli_a90a9d996078dbd9`
-   - `FEISHU_APP_SECRET=5N3YZhsGq2exd036bRZVNb6WcsrK2NJQ`
+   - `FEISHU_APP_ID=YOUR_APP_ID`
+   - `FEISHU_APP_SECRET=YOUR_APP_SECRET`
 4. 重新部署
 
 ### 方案 2: 使用用户配置界面（最安全）

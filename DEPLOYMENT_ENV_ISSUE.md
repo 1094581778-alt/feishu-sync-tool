@@ -59,8 +59,8 @@ npx next start
 4. **添加以下环境变量**:
 
 ```env
-FEISHU_APP_ID=cli_a90a9d996078dbd9
-FEISHU_APP_SECRET=5N3YZhsGq2exd036bRZVNb6WcsrK2NJQ
+FEISHU_APP_ID=YOUR_APP_ID
+FEISHU_APP_SECRET=YOUR_APP_SECRET
 FEISHU_SPREADSHEET_TOKEN=
 FEISHU_SHEET_ID=
 ```
@@ -201,7 +201,7 @@ grep "FEISHU_APP_ID" /app/work/logs/bypass/app.log
 
 **如果环境变量已加载**:
 ```
-FEISHU_APP_ID=cli_a90a9d996078dbd9
+FEISHU_APP_ID=YOUR_APP_ID
 ```
 
 **如果环境变量未加载**:
@@ -284,8 +284,8 @@ grep "飞书字段" /app/work/logs/bypass/app.log
 ### 快速修复（5分钟）
 
 1. **在部署平台添加环境变量**:
-   - `FEISHU_APP_ID=cli_a90a9d996078dbd9`
-   - `FEISHU_APP_SECRET=5N3YZhsGq2exd036bRZVNb6WcsrK2NJQ`
+   - `FEISHU_APP_ID=YOUR_APP_ID`
+   - `FEISHU_APP_SECRET=YOUR_APP_SECRET`
 
 2. **重新部署应用**
 

@@ -61,7 +61,7 @@
   --card-foreground: oklch(0.15 0.02 250);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.15 0.02 250);
-  --primary: oklch(0.55 0.22 250);
+  --primary: #3370FF; /* 飞书品牌主色 */
   --primary-foreground: oklch(1 0 0);
   --secondary: oklch(0.95 0.01 250);
   --secondary-foreground: oklch(0.15 0.02 250);
@@ -72,15 +72,15 @@
   --destructive: oklch(0.55 0.22 25);
   --border: oklch(0.88 0.01 250);
   --input: oklch(0.92 0.01 250);
-  --ring: oklch(0.55 0.22 250);
-  --chart-1: oklch(0.55 0.22 250);
+  --ring: #3370FF; /* 飞书品牌主色 */
+  --chart-1: #3370FF; /* 飞书品牌主色 */
   --chart-2: oklch(0.6 0.18 180);
   --chart-3: oklch(0.65 0.15 120);
   --chart-4: oklch(0.75 0.12 60);
   --chart-5: oklch(0.6 0.18 320);
   --sidebar: oklch(0.99 0.005 250);
   --sidebar-foreground: oklch(0.15 0.02 250);
-  --sidebar-primary: oklch(0.55 0.22 250);
+  --sidebar-primary: #3370FF; /* 飞书品牌主色 */
   --sidebar-primary-foreground: oklch(1 0 0);
   --sidebar-accent: oklch(0.95 0.01 250);
   --sidebar-accent-foreground: oklch(0.15 0.02 250);
@@ -95,7 +95,7 @@
   --card-foreground: oklch(0.95 0.01 250);
   --popover: oklch(0.15 0.01 250);
   --popover-foreground: oklch(0.95 0.01 250);
-  --primary: oklch(0.65 0.2 250);
+  --primary: #5C8DFF; /* 飞书品牌次色，深色模式优化 */
   --primary-foreground: oklch(0.1 0.01 250);
   --secondary: oklch(0.2 0.01 250);
   --secondary-foreground: oklch(0.95 0.01 250);
@@ -106,15 +106,15 @@
   --destructive: oklch(0.65 0.2 25);
   --border: oklch(0.25 0.01 250);
   --input: oklch(0.2 0.01 250);
-  --ring: oklch(0.65 0.2 250);
-  --chart-1: oklch(0.65 0.2 250);
+  --ring: #5C8DFF; /* 飞书品牌次色 */
+  --chart-1: #5C8DFF; /* 飞书品牌次色 */
   --chart-2: oklch(0.6 0.18 180);
   --chart-3: oklch(0.55 0.15 120);
   --chart-4: oklch(0.65 0.12 60);
   --chart-5: oklch(0.6 0.18 320);
   --sidebar: oklch(0.15 0.01 250);
   --sidebar-foreground: oklch(0.95 0.01 250);
-  --sidebar-primary: oklch(0.65 0.2 250);
+  --sidebar-primary: #5C8DFF; /* 飞书品牌次色 */
   --sidebar-primary-foreground: oklch(0.1 0.01 250);
   --sidebar-accent: oklch(0.2 0.01 250);
   --sidebar-accent-foreground: oklch(0.65 0.2 250);
@@ -297,4 +297,288 @@ body {
 
 .delay-1000 {
   animation-delay: 1000ms;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(0.8);
+    opacity: 0.3;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 0.6;
+  }
+  100% {
+    transform: scale(0.8);
+    opacity: 0.3;
+  }
+}
+
+@keyframes fog-dissolve {
+  0% {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  25% {
+    opacity: 0.8;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(1.08);
+  }
+  75% {
+    opacity: 0.25;
+    transform: scale(1.12);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.18);
+  }
+}
+
+/* 移动端响应式优化 */
+@media (max-width: 640px) {
+  /* 确保触摸目标最小44px */
+  button,
+  [role="button"],
+  .btn-touch {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* 优化小按钮在移动端的尺寸 */
+  button[data-size="sm"],
+  .btn-sm {
+    height: 40px !important;
+    min-height: 40px;
+    padding-top: 10px !important;
+    padding-bottom: 10px !important;
+  }
+  
+  /* 优化图标按钮 */
+  button[data-size="icon"],
+  button[data-size="icon-sm"] {
+    width: 44px !important;
+    height: 44px !important;
+    min-width: 44px;
+    min-height: 44px;
+  }
+  
+  /* 优化表单元素间距 */
+  .form-field {
+    margin-bottom: 1.5rem;
+  }
+  
+  /* 优化卡片内边距 */
+  .card-padding {
+    padding: 1.5rem;
+  }
+  
+  /* 优化步骤指示器在移动端的显示 */
+  .step-indicator {
+    width: 48px;
+    height: 48px;
+  }
+  
+  /* 优化文本大小确保可读性 */
+  .text-tiny-mobile {
+    font-size: 13px;
+  }
+  
+  /* 优化行高提升可读性 */
+  .text-mobile {
+    line-height: 1.6;
+  }
+}
+
+/* 平板设备优化 */
+@media (max-width: 768px) {
+  /* 优化容器边距 */
+  .container-padding {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  
+  /* 优化卡片布局 */
+  .card-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  /* 优化按钮组间距 */
+  .btn-group-mobile {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  
+  /* 优化表单标签和输入的垂直布局 */
+  .form-vertical {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+/* 飞书品牌色增强 */
+:root {
+  --feishu-primary: #3370FF;
+  --feishu-secondary: #5C8DFF;
+  --feishu-accent: #84ABFF;
+  
+  /* 飞书风格间距系统 */
+  --spacing-xs: 0.25rem;   /* 4px */
+  --spacing-sm: 0.5rem;    /* 8px */
+  --spacing-md: 1rem;      /* 16px */
+  --spacing-lg: 1.5rem;    /* 24px */
+  --spacing-xl: 2rem;      /* 32px */
+  --spacing-2xl: 3rem;     /* 48px */
+  
+  /* 飞书风格圆角 */
+  --radius-sm: 0.375rem;   /* 6px */
+  --radius-md: 0.5rem;     /* 8px */
+  --radius-lg: 0.75rem;    /* 12px */
+  --radius-xl: 1rem;       /* 16px */
+}
+
+/* 色彩对比度优化 */
+.text-primary-enhanced {
+  color: oklch(0.55 0.22 250);
+}
+
+.text-primary-enhanced-dark {
+  color: oklch(0.65 0.2 250);
+}
+
+/* 确保WCAG AA标准对比度 */
+.wcag-text {
+  color: oklch(0.15 0.02 250);
+}
+
+.wcag-text-dark {
+  color: oklch(0.95 0.01 250);
+}
+
+/* 中文排版优化 */
+.chinese-typography {
+  /* 标点挤压优化 */
+  hanging-punctuation: allow-end;
+  text-spacing: trim-start allow-end trim-adjacent ideograph-alpha ideograph-numeric;
+  
+  /* 避头尾规则 */
+  line-break: strict;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  
+  /* 优化中文标点 */
+  font-feature-settings: "palt", "pkna";
+}
+
+/* 字体层级系统 */
+.text-display {
+  font-size: 3rem; /* 48px */
+  line-height: 1.1;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.text-h1 {
+  font-size: 2.5rem; /* 40px */
+  line-height: 1.2;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.text-h2 {
+  font-size: 2rem; /* 32px */
+  line-height: 1.25;
+  font-weight: 700;
+}
+
+.text-h3 {
+  font-size: 1.5rem; /* 24px */
+  line-height: 1.3;
+  font-weight: 700;
+}
+
+.text-h4 {
+  font-size: 1.25rem; /* 20px */
+  line-height: 1.35;
+  font-weight: 700;
+}
+
+/* 隐藏滚动条，但保留滚动功能 */
+::-webkit-scrollbar {
+  width: 0px;
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: transparent;
+}
+
+/* Firefox */
+* {
+  scrollbar-width: none;
+}
+
+/* IE 和 Edge */
+body {
+  -ms-overflow-style: none;
+}
+
+.text-body-lg {
+  font-size: 1.125rem; /* 18px */
+  line-height: 1.6;
+}
+
+.text-body {
+  font-size: 1rem; /* 16px */
+  line-height: 1.6;
+}
+
+.text-body-sm {
+  font-size: 0.875rem; /* 14px */
+  line-height: 1.5;
+}
+
+.text-caption {
+  font-size: 0.75rem; /* 12px */
+  line-height: 1.4;
+  color: var(--muted-foreground);
+}
+
+/* 优化中文文本行高 */
+.text-cn {
+  line-height: 1.8;
+}
+
+/* 优化英文文本行高 */
+.text-en {
+  line-height: 1.5;
+}
+
+/* 响应式字体缩放 */
+@media (max-width: 768px) {
+  .text-display {
+    font-size: 2.5rem;
+  }
+  
+  .text-h1 {
+    font-size: 2rem;
+  }
+  
+  .text-h2 {
+    font-size: 1.75rem;
+  }
+  
+  .text-h3 {
+    font-size: 1.25rem;
+  }
+  
+  .text-h4 {
+    font-size: 1.125rem;
+  }
+  
+  .text-body-lg {
+    font-size: 1rem;
+  }
 }

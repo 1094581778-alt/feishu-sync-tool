@@ -8,3 +8,5 @@ export { useUrlHistory } from './useUrlHistory';
 export { useHistoryTemplates } from './useHistoryTemplates';
 export { useFileHandler } from './useFileHandler';
 export { useTheme } from './useTheme';
+export { useFileRecognition } from './useFileRecognition';
+export { useEnhancedFileRecognition } from './useEnhancedFileRecognition';

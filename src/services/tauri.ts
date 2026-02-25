@@ -56,6 +56,15 @@ export const TauriService = {
       return '';
     }
   },
+
+  async checkPreviousDeployment(): Promise<boolean> {
+    try {
+      return await invoke('check_previous_deployment');
+    } catch (error) {
+      console.error('检查部署失败:', error);
+      return false;
+    }
+  },
 };
 
 export const isTauri = () => {

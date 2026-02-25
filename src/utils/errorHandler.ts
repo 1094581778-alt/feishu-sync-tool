@@ -224,3 +224,70 @@ export function isRetryableError(error: Error): boolean {
 
   return false;
 }
+
+/**
+ * 创建标准化的错误响应对象
+ */
+export function createErrorResponse(error: unknown, statusCode: number = 500) {
+  let handledError: Error;
+  
+  if (error instanceof ApiError || error instanceof FileUploadError || error instanceof FeishuApiError) {
+    handledError = error;
+  } else {
+    handledError = handleApiError(error);
+  }
+  
+  return {
+    error: handledError.message,
+    code: handledError instanceof ApiError ? handledError.code : ERROR_CODES.UNKNOWN_ERROR,
+    details: handledError instanceof ApiError ? handledError.details : undefined,
+    timestamp: new Date().toISOString(),
+    statusCode,
+  };
+}
+
+/**
+ * 获取错误的HTTP状态码
+ */
+export function getErrorStatusCode(error: Error): number {
+  if (error instanceof ApiError) {
+    switch (error.code) {
+      case ERROR_CODES.API_UNAUTHORIZED:
+        return 401;
+      case ERROR_CODES.API_FORBIDDEN:
+        return 403;
+      case ERROR_CODES.API_NOT_FOUND:
+        return 404;
+      case ERROR_CODES.API_RATE_LIMIT:
+        return 429;
+      case ERROR_CODES.FILE_TOO_LARGE:
+      case ERROR_CODES.INVALID_FILE_TYPE:
+        return 400;
+      default:
+        return 500;
+    }
+  }
+  
+  if (error instanceof FileUploadError) {
+    switch (error.code) {
+      case ERROR_CODES.FILE_TOO_LARGE:
+      case ERROR_CODES.INVALID_FILE_TYPE:
+        return 400;
+      default:
+        return 500;
+    }
+  }
+  
+  if (error instanceof FeishuApiError) {
+    switch (error.code) {
+      case ERROR_CODES.FEISHU_CONFIG_MISSING:
+        return 400;
+      case ERROR_CODES.FEISHU_TOKEN_INVALID:
+        return 401;
+      default:
+        return 500;
+    }
+  }
+  
+  return 500;
+}
