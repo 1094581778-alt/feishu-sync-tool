@@ -6,49 +6,6 @@ extern crate winreg;
 #[cfg(target_os = "windows")]
 use winreg::{enums::*, RegKey};
 
-use std::process::Command;
-use std::thread;
-use std::time::Duration;
-
-fn start_next_server() {
-    let exe_dir = std::env::current_exe()
-        .ok()
-        .and_then(|p| p.parent().map(|p| p.to_path_buf()))
-        .unwrap_or_default();
-    
-    let server_path = exe_dir.join("resources").join("app.as.unpacked").join("server.js");
-    
-    if !server_path.exists() {
-        let alt_path = exe_dir.join("server.js");
-        if alt_path.exists() {
-            spawn_server(&alt_path);
-        } else {
-            eprintln!("Next.js server.js not found at: {:?}", server_path);
-        }
-    } else {
-        spawn_server(&server_path);
-    }
-}
-
-fn spawn_server(server_path: &std::path::Path) {
-    let server_dir = server_path.parent().map(|p| p.to_path_buf()).unwrap_or_default();
-    
-    let child = Command::new("node")
-        .arg(server_path)
-        .current_dir(&server_dir)
-        .spawn();
-    
-    match child {
-        Ok(_) => {
-            println!("Next.js server started successfully");
-            thread::sleep(Duration::from_secs(3));
-        }
-        Err(e) => {
-            eprintln!("Failed to start Next.js server: {}", e);
-        }
-    }
-}
-
 #[tauri::command]
 async fn call_api(url: String, method: String, body: Option<String>) -> Result<String, String> {
     let client = reqwest::Client::new();

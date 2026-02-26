@@ -81,6 +81,13 @@ export default function FileUploadPage() {
   // 使用性能监控
   usePerformanceMonitor('FileUploadPage');
   
+  // 在 Tauri 环境中设置 fetch 拦截
+  useEffect(() => {
+    if (isTauri()) {
+      setupTauriFetch();
+    }
+  }, []);
+  
   // 使用自定义 Hooks
   const { appId: feishuAppId, appSecret: feishuAppSecret, setAppId: setFeishuAppId, setAppSecret: setFeishuAppSecret, saveConfig: saveFeishuConfig } = useFeishuConfig();
   const { history: urlHistory, setHistory: setUrlHistory, addToHistory, removeFromHistory } = useUrlHistory();
@@ -226,9 +233,11 @@ export default function FileUploadPage() {
       if (result.success) {
         alert(`✅ 成功导入 ${result.count || 0} 个模板`);
         // 刷新模板列表
-        const savedTemplates = localStorage.getItem(STORAGE_KEYS.FEISHU_HISTORY_TEMPLATES);
-        if (savedTemplates) {
-          setHistoryTemplates(JSON.parse(savedTemplates));
+        if (typeof window !== 'undefined') {
+          const savedTemplates = localStorage.getItem(STORAGE_KEYS.FEISHU_HISTORY_TEMPLATES);
+          if (savedTemplates) {
+            setHistoryTemplates(JSON.parse(savedTemplates));
+          }
         }
       } else {
         alert(`❌ 导入失败: ${result.message}`);
@@ -556,7 +565,7 @@ export default function FileUploadPage() {
     console.log('🗑️ [handleClear] 清除内容被调用');
     
     // 从历史记录中移除当前链接
-    if (feishuUrl && urlHistory.includes(feishuUrl)) {
+    if (feishuUrl && Array.isArray(urlHistory) && urlHistory.includes(feishuUrl)) {
       const newHistory = removeFromHistory(feishuUrl, urlHistory);
       setUrlHistory(newHistory);
       console.log('🗑️ [历史记录] 已从历史记录中移除链接');
@@ -567,8 +576,10 @@ export default function FileUploadPage() {
     setTablesWithLog([]);
     setSelectedTableIds([]);
     setError('');
-    localStorage.removeItem(STORAGE_KEYS.FEISHU_URL);
-    localStorage.removeItem(STORAGE_KEYS.FEISHU_TABLE_ID);
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(STORAGE_KEYS.FEISHU_URL);
+      localStorage.removeItem(STORAGE_KEYS.FEISHU_TABLE_ID);
+    }
   };
 
   // 从历史记录选择链接
@@ -655,7 +666,7 @@ export default function FileUploadPage() {
       // 先设置正在应用的模版，这样在获取工作表时可以恢复选择
       setApplyingTemplate(template);
       setParsedConfig(config);
-      if (template.feishuUrl) {
+      if (template.feishuUrl && typeof window !== 'undefined') {
         localStorage.setItem('feishuUrl', template.feishuUrl);
       }
       
