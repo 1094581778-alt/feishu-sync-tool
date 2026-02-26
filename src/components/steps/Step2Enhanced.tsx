@@ -111,7 +111,11 @@ export function Step2Enhanced({
   const [isDragActive, setIsDragActive] = useState(false);
   
   // 过滤表格
-  const filteredTables = tables.filter(table => {
+  const safeTables = Array.isArray(tables) ? tables : [];
+  const safeSelectedTableIds = Array.isArray(selectedTableIds) ? selectedTableIds : [];
+  const safeTemplateSelectedTableIds = Array.isArray(templateSelectedTableIds) ? templateSelectedTableIds : [];
+  
+  const filteredTables = safeTables.filter(table => {
     if (!searchQuery.trim()) return true;
     const query = searchQuery.toLowerCase();
     const tableName = table.name || '';
@@ -124,11 +128,11 @@ export function Step2Enhanced({
 
   // 根据模板选择高亮显示表格
   const sortedTables = (() => {
-    if (templateSelectedTableIds.length === 0) {
+    if (safeTemplateSelectedTableIds.length === 0) {
       return filteredTables;
     }
 
-    const templateSelectedSet = new Set(templateSelectedTableIds);
+    const templateSelectedSet = new Set(safeTemplateSelectedTableIds);
     const selectedTables: any[] = [];
     const otherTables: any[] = [];
 
@@ -358,8 +362,8 @@ export function Step2Enhanced({
                 </div>
               ) : (
                 sortedTables.map((table) => {
-                  const isSelected = selectedTableIds.includes(table.id);
-                  const isTemplateSelected = templateSelectedTableIds.includes(table.id);
+                  const isSelected = safeSelectedTableIds.includes(table.id);
+                  const isTemplateSelected = safeTemplateSelectedTableIds.includes(table.id);
                   const fieldCount = tableFields[table.id]?.length || 0;
 
                   return (

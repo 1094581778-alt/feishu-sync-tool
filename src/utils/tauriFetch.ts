@@ -1,32 +1,51 @@
-import { invoke } from '@tauri-apps/api/core';
+import { fetch as tauriFetch } from '@tauri-apps/plugin-http';
 
 const isTauri = typeof window !== 'undefined' && (window as any).__TAURI__ !== undefined;
 
-export async function tauriFetch(url: string, options: RequestInit = {}): Promise<Response> {
+const API_BASE_URL = 'http://localhost:3000';
+
+export async function httpFetch(url: string, options: RequestInit = {}): Promise<Response> {
   if (!isTauri) {
     return fetch(url, options);
   }
 
-  const method = options.method || 'GET';
-  let body: string | null = null;
+  let fullUrl = url;
   
-  if (options.body) {
-    body = typeof options.body === 'string' ? options.body : JSON.stringify(options.body);
+  if (url.startsWith('/api/')) {
+    fullUrl = `${API_BASE_URL}${url}`;
+  }
+  
+  const method = options.method || 'GET';
+  const headers: Record<string, string> = {};
+  
+  if (options.headers) {
+    const h = options.headers as Record<string, string>;
+    for (const key in h) {
+      headers[key] = h[key];
+    }
+  }
+  
+  if (options.body && typeof options.body === 'object') {
+    headers['Content-Type'] = 'application/json';
   }
 
   try {
-    const response = await invoke<string>('call_api', {
-      url,
+    const response = await tauriFetch(fullUrl, {
       method,
-      body,
+      headers,
+      body: options.body as string | undefined,
     });
 
-    return new Response(response, {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
+    const text = await response.text();
+    
+    return new Response(text, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: response.headers,
     });
   } catch (error) {
-    throw new Error(`API call failed: ${error}`);
+    console.error('[Tauri HTTP] Fetch error:', error);
+    throw error;
   }
 }
 
@@ -48,8 +67,15 @@ export function setupTauriFetch() {
       } else {
         url = (input as Request).url;
       }
-      return tauriFetch(url, init || {});
+      
+      if (url.startsWith('/api/')) {
+        console.log('[Tauri] Proxying API request:', url);
+        return httpFetch(url, init || {});
+      }
+      
+      return originalFetch!(input, init);
     };
+    console.log('[Tauri] Fetch interceptor installed');
   }
 }
 

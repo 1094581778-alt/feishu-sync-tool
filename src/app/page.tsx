@@ -467,7 +467,8 @@ export default function FileUploadPage() {
           // 如果正在应用模版，则恢复模版中保存的工作表选择
           if (applyingTemplate) {
             console.log('🔄 [请求 ' + requestId + '] 恢复模版工作表选择:', applyingTemplate.selectedTableIds);
-            setSelectedTableIds(applyingTemplate.selectedTableIds);
+            const templateTableIds = Array.isArray(applyingTemplate.selectedTableIds) ? applyingTemplate.selectedTableIds : [];
+            setSelectedTableIds(templateTableIds);
             setTableFields(applyingTemplate.tableFields || {});
             setTableFieldMatches(applyingTemplate.fieldMatchResults || {});
             setTableToSheetMapping(applyingTemplate.tableToSheetMapping || {});
