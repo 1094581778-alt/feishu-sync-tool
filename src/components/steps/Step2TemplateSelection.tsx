@@ -71,9 +71,10 @@ export function Step2TemplateSelection({
   const filteredTemplates = historyTemplates.filter(template => {
     if (!searchQuery.trim()) return true;
     const query = searchQuery.toLowerCase();
+    const templateName = template.name || '';
     return (
-      template.name.toLowerCase().includes(query) ||
-      (template.remark && template.remark.toLowerCase().includes(query))
+      templateName.toLowerCase().includes(query) ||
+      (template.remark && typeof template.remark === 'string' && template.remark.toLowerCase().includes(query))
     );
   });
 

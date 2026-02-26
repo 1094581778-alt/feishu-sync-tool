@@ -46,10 +46,14 @@ export function TemplatePage({ onBack, onLoadTemplate }: TemplatePageProps) {
   }, []);
 
   // 筛选模版
-  const filteredTemplates = templates.filter(t =>
-    t.name.toLowerCase().includes(searchText.toLowerCase()) ||
-    (t.remark && t.remark.toLowerCase().includes(searchText.toLowerCase()))
-  );
+  const filteredTemplates = templates.filter(t => {
+    const tName = t.name || '';
+    const searchLower = searchText.toLowerCase();
+    return (
+      tName.toLowerCase().includes(searchLower) ||
+      (t.remark && typeof t.remark === 'string' && t.remark.toLowerCase().includes(searchLower))
+    );
+  });
 
   // 删除模版
   const handleDeleteTemplate = (id: string) => {

@@ -126,10 +126,13 @@ export function TemplateList({
   // 模板过滤和搜索逻辑
   const filteredTemplates = useMemo(() => {
     return (historyTemplates || []).filter(template => {
+      const templateName = template.name || '';
+      const searchLower = searchQuery.toLowerCase();
+      
       // 搜索过滤
       const matchesSearch = searchQuery === '' || 
-        template.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (template.remark && template.remark.toLowerCase().includes(searchQuery.toLowerCase()));
+        templateName.toLowerCase().includes(searchLower) ||
+        (template.remark && typeof template.remark === 'string' && template.remark.toLowerCase().includes(searchLower));
       
       // 状态过滤
       if (filterStatus === 'all') return matchesSearch;
@@ -1211,9 +1214,10 @@ export function TemplateList({
                                       <div className="flex flex-wrap gap-1">
                                         {(() => {
                                           const feishuFields = Array.isArray(template.tableFields?.[tableId]) ? template.tableFields[tableId] : [];
-                                          const matchedFeishuFields = matches.filter((m: any) => m.matched).map((m: any) => m.feishuField);
+                                          const matchResults = Array.isArray(matches) ? matches : [];
+                                          const matchedFeishuFields = matchResults.filter((m: any) => m.matched).map((m: any) => m.feishuField);
                                           const unusedFeishuFields = feishuFields.filter((f: any) => 
-                                            !matchedFeishuFields.includes(f.field_name || f.name)
+                                            Array.isArray(matchedFeishuFields) && !matchedFeishuFields.includes(f.field_name || f.name)
                                           );
                                           return unusedFeishuFields.length > 0 ? (
                                             unusedFeishuFields.map((f: any, idx: number) => (
