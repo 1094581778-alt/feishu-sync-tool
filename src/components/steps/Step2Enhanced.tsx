@@ -114,9 +114,11 @@ export function Step2Enhanced({
   const filteredTables = tables.filter(table => {
     if (!searchQuery.trim()) return true;
     const query = searchQuery.toLowerCase();
+    const tableName = table.name || '';
+    const tableId = table.id || '';
     return (
-      table.name.toLowerCase().includes(query) ||
-      table.id.toLowerCase().includes(query)
+      tableName.toLowerCase().includes(query) ||
+      tableId.toLowerCase().includes(query)
     );
   });
 

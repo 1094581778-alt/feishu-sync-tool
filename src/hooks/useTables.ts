@@ -123,6 +123,7 @@ export function useTables(): UseTablesResult {
    * 选择工作表
    */
   const selectTable = useCallback((tableId: string) => {
+    if (!Array.isArray(selectedTableIds)) return;
     if (!selectedTableIds.includes(tableId)) {
       setSelectedTableIds(prev => [...prev, tableId]);
       logger.debug(LOG_CATEGORIES.COMPONENT, '选择工作表', { tableId });
@@ -158,6 +159,7 @@ export function useTables(): UseTablesResult {
    * 获取已选择的工作表
    */
   const getSelectedTables = useCallback((): FeishuTable[] => {
+    if (!Array.isArray(tables) || !Array.isArray(selectedTableIds)) return [];
     return tables.filter(t => selectedTableIds.includes(t.id));
   }, [tables, selectedTableIds]);
 

@@ -49,19 +49,40 @@ fn spawn_server(server_path: &std::path::Path) {
     }
 }
 
-fn main() {
-    #[cfg(target_os = "windows")]
-    {
-        start_next_server();
+#[tauri::command]
+async fn call_api(url: String, method: String, body: Option<String>) -> Result<String, String> {
+    let client = reqwest::Client::new();
+    
+    let mut request = match method.to_uppercase().as_str() {
+        "GET" => client.get(&url),
+        "POST" => client.post(&url),
+        "PUT" => client.put(&url),
+        "DELETE" => client.delete(&url),
+        _ => return Err("Unsupported HTTP method".to_string()),
+    };
+    
+    if let Some(body_content) = body {
+        request = request.body(body_content);
     }
     
+    let response = request
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    
+    let text = response.text().await.map_err(|e| e.to_string())?;
+    Ok(text)
+}
+
+fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             greet,
             get_app_version,
-            check_previous_deployment
+            check_previous_deployment,
+            call_api
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

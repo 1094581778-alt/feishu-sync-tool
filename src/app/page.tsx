@@ -37,6 +37,7 @@ import { useFeishuConfig, useUrlHistory, useHistoryTemplates, useTheme } from '@
 import { useFeishuApi } from '@/hooks/useFeishuApi';
 import { TauriService, isTauri } from '@/services/tauri';
 import { usePerformanceMonitor } from '@/utils/performance';
+import { setupTauriFetch } from '@/utils/tauriFetch';
 
 // 从类型文件导入
 import type { Step, UploadResult, HistoryTemplate, FieldMatchResult, FeishuTable, FeishuField } from '@/types';
@@ -1552,7 +1553,9 @@ export default function FileUploadPage() {
   };
 
   // 获取选中的工作表列表
-  const selectedTables = tables.filter(t => selectedTableIds.includes(t.id));
+  const selectedTables = Array.isArray(tables) && Array.isArray(selectedTableIds) 
+    ? tables.filter(t => selectedTableIds.includes(t.id))
+    : [];
 
   const renderStep2 = () => (
     <Step2Enhanced

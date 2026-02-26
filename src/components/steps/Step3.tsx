@@ -76,7 +76,9 @@ export function Step3({
   // 性能监控
   usePerformanceMonitor('Step3');
 
-  const selectedTables = tables.filter(t => selectedTableIds.includes(t.id));
+  const selectedTables = Array.isArray(tables) && Array.isArray(selectedTableIds)
+    ? tables.filter(t => selectedTableIds.includes(t.id))
+    : [];
 
   return (
     <Card className="p-8 sm:p-10">
