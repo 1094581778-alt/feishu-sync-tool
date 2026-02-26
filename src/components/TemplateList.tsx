@@ -195,7 +195,8 @@ export function TemplateList({
           name: data.table.name,
         };
 
-        const updatedTemplates = historyTemplates.map((temp) =>
+        const safeHistoryTemplates = Array.isArray(historyTemplates) ? historyTemplates : [];
+        const updatedTemplates = safeHistoryTemplates.map((temp) =>
           temp.id === currentTemplateForCreate.id
             ? {
                 ...temp,
@@ -207,7 +208,9 @@ export function TemplateList({
         );
 
         setHistoryTemplates(updatedTemplates);
-        localStorage.setItem('feishuHistoryTemplates', JSON.stringify(updatedTemplates));
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('feishuHistoryTemplates', JSON.stringify(updatedTemplates));
+        }
 
         setShowCreateTableDialog(false);
         setShowSaveSuccess(`工作表 "${tableName}" 创建成功，正在添加字段...`);
@@ -591,10 +594,12 @@ export function TemplateList({
                                       : temp
                                   );
                                   setHistoryTemplates(updatedTemplates);
-                                  localStorage.setItem(
-                                    'feishuHistoryTemplates',
-                                    JSON.stringify(updatedTemplates)
-                                  );
+                                  if (typeof window !== 'undefined') {
+                                    localStorage.setItem(
+                                      'feishuHistoryTemplates',
+                                      JSON.stringify(updatedTemplates)
+                                    );
+                                  }
                                   console.log(
                                     `✅ [历史模版] 已应用模版 "${t.name}" 的子表配置到 "${template.name}"`
                                   );
@@ -695,10 +700,12 @@ export function TemplateList({
                             : temp
                         );
                         setHistoryTemplates(updatedTemplates);
-                        localStorage.setItem(
-                          'feishuHistoryTemplates',
-                          JSON.stringify(updatedTemplates)
-                        );
+                        if (typeof window !== 'undefined') {
+                          localStorage.setItem(
+                            'feishuHistoryTemplates',
+                            JSON.stringify(updatedTemplates)
+                          );
+                        }
                         console.log(
                           `✅ [历史模版] 已更新模版 "${template.name}" 的文件路径: ${path}`
                         );
@@ -802,10 +809,12 @@ export function TemplateList({
                                               : temp
                                           );
                                           setHistoryTemplates(updatedTemplates);
-                                          localStorage.setItem(
-                                            'feishuHistoryTemplates',
-                                            JSON.stringify(updatedTemplates)
-                                          );
+                                          if (typeof window !== 'undefined') {
+                                            localStorage.setItem(
+                                              'feishuHistoryTemplates',
+                                              JSON.stringify(updatedTemplates)
+                                            );
+                                          }
                                           console.log(
                                             `✅ [历史模版] 已应用模版 "${t.name}" 的子表配置到 "${template.name}"`
                                           );
@@ -868,10 +877,12 @@ export function TemplateList({
                                       temp.id === template.id ? template : temp
                                     );
                                     setHistoryTemplates(updatedTemplates);
-                                    localStorage.setItem(
-                                      'feishuHistoryTemplates',
-                                      JSON.stringify(updatedTemplates)
-                                    );
+                                    if (typeof window !== 'undefined') {
+                                      localStorage.setItem(
+                                        'feishuHistoryTemplates',
+                                        JSON.stringify(updatedTemplates)
+                                      );
+                                    }
                                     setShowSaveSuccess('配置已保存');
                                     setTimeout(() => setShowSaveSuccess(null), 3000);
                                   }}
@@ -986,10 +997,12 @@ export function TemplateList({
                                                 : temp
                                               );
                                               setHistoryTemplates(updatedTemplates);
-                                              localStorage.setItem(
-                                                'feishuHistoryTemplates',
-                                                JSON.stringify(updatedTemplates)
-                                              );
+                                              if (typeof window !== 'undefined') {
+                                                localStorage.setItem(
+                                                  'feishuHistoryTemplates',
+                                                  JSON.stringify(updatedTemplates)
+                                                );
+                                              }
                                               console.log(
                                                 `✅ [历史模版] 已将模版 "${template.name}" 的工作表从 "${table?.name}" 修改为 "${t.name}"`
                                               );
@@ -1075,10 +1088,12 @@ export function TemplateList({
                                                 : temp
                                               );
                                               setHistoryTemplates(updatedTemplates);
-                                              localStorage.setItem(
-                                                'feishuHistoryTemplates',
-                                                JSON.stringify(updatedTemplates)
-                                              );
+                                              if (typeof window !== 'undefined') {
+                                                localStorage.setItem(
+                                                  'feishuHistoryTemplates',
+                                                  JSON.stringify(updatedTemplates)
+                                                );
+                                              }
                                               console.log(
                                                 `✅ [历史模版] 已将模版 "${template.name}" 的工作表 "${table?.name}" 的 Sheet 从 "${savedSheet}" 修改为 "${sheetName}"`
                                               );
@@ -1495,7 +1510,9 @@ export function TemplateList({
               onClick={() => {
                 console.log('🔍 [历史模版] 用户确认清除，准备执行操作');
                 setHistoryTemplates([]);
-                localStorage.removeItem('feishuHistoryTemplates');
+                if (typeof window !== 'undefined') {
+                  localStorage.removeItem('feishuHistoryTemplates');
+                }
                 console.log('✅ [历史模版] 已清除全部历史模板');
                 setShowClearAllDialog(false);
               }}

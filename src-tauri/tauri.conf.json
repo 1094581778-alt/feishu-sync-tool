@@ -53,7 +53,8 @@
         "name": "Excel文件",
         "role": "Editor"
       }
-    ]
+    ],
+    "resources": []
   },
   "plugins": {
     "updater": {
