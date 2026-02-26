@@ -26,7 +26,9 @@ export function useHistoryTemplates() {
   const saveTemplate = (template: HistoryTemplate) => {
     const newTemplates = [template, ...templates];
     setTemplates(newTemplates);
-    localStorage.setItem(STORAGE_KEYS.FEISHU_HISTORY_TEMPLATES, JSON.stringify(newTemplates));
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(STORAGE_KEYS.FEISHU_HISTORY_TEMPLATES, JSON.stringify(newTemplates));
+    }
   };
 
   // 更新模版
@@ -35,14 +37,18 @@ export function useHistoryTemplates() {
       t.id === templateId ? { ...t, ...updatedTemplate, updatedAt: new Date().toISOString() } : t
     );
     setTemplates(newTemplates);
-    localStorage.setItem(STORAGE_KEYS.FEISHU_HISTORY_TEMPLATES, JSON.stringify(newTemplates));
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(STORAGE_KEYS.FEISHU_HISTORY_TEMPLATES, JSON.stringify(newTemplates));
+    }
   };
 
   // 删除模版
   const deleteTemplate = (templateId: string) => {
     const newTemplates = templates.filter(t => t.id !== templateId);
     setTemplates(newTemplates);
-    localStorage.setItem(STORAGE_KEYS.FEISHU_HISTORY_TEMPLATES, JSON.stringify(newTemplates));
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(STORAGE_KEYS.FEISHU_HISTORY_TEMPLATES, JSON.stringify(newTemplates));
+    }
   };
 
   // 导出模版

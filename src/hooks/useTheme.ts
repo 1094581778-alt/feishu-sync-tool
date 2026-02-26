@@ -11,6 +11,7 @@ export interface ThemeConfig {
 
 export function useTheme() {
   const [theme, setTheme] = useState<Theme>('light');
+  const [mounted, setMounted] = useState(false);
   
   const themes: Record<Theme, ThemeConfig> = {
     light: {
@@ -46,13 +47,14 @@ export function useTheme() {
   };
 
   useEffect(() => {
-    // 从localStorage加载主题
+    setMounted(true);
+    if (typeof window === 'undefined') return;
+    
     const savedTheme = localStorage.getItem('theme') as Theme | null;
     if (savedTheme) {
       setTheme(savedTheme);
       applyTheme(savedTheme);
     } else {
-      // 检测系统主题偏好
       const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
       const initialTheme: Theme = 'system';
       setTheme(initialTheme);
@@ -61,17 +63,16 @@ export function useTheme() {
   }, []);
 
   const applyTheme = (themeName: Theme) => {
+    if (typeof window === 'undefined') return;
+    
     const root = document.documentElement;
     
-    // 移除所有主题类
     root.classList.remove('dark', 'high-contrast', 'sepia');
     
-    // 应用新主题
     if (themeName === 'system') {
       const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
       root.classList.toggle('dark', prefersDark);
     } else if (themeName === 'light') {
-      // light 模式不需要任何类
     } else if (themeName === 'dark') {
       root.classList.add('dark');
     } else if (themeName === 'highContrast') {
@@ -88,13 +89,17 @@ export function useTheme() {
     const newTheme = themeOrder[nextIndex];
     setTheme(newTheme);
     applyTheme(newTheme);
-    localStorage.setItem('theme', newTheme);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('theme', newTheme);
+    }
   };
 
   const switchTheme = (themeName: Theme) => {
     setTheme(themeName);
     applyTheme(themeName);
-    localStorage.setItem('theme', themeName);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('theme', themeName);
+    }
   };
 
   return { theme, themes, toggleTheme, switchTheme };

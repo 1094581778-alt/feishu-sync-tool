@@ -24,14 +24,18 @@ export function useUrlHistory() {
   // 添加到历史记录
   const addToHistory = (url: string, currentHistory: string[]) => {
     const newHistory = [url, ...currentHistory.filter(u => u !== url)].slice(0, 10);
-    localStorage.setItem(STORAGE_KEYS.FEISHU_URL_HISTORY, JSON.stringify(newHistory));
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(STORAGE_KEYS.FEISHU_URL_HISTORY, JSON.stringify(newHistory));
+    }
     return newHistory;
   };
 
   // 从历史记录移除
   const removeFromHistory = (url: string, currentHistory: string[]) => {
     const newHistory = currentHistory.filter(u => u !== url);
-    localStorage.setItem(STORAGE_KEYS.FEISHU_URL_HISTORY, JSON.stringify(newHistory));
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(STORAGE_KEYS.FEISHU_URL_HISTORY, JSON.stringify(newHistory));
+    }
     return newHistory;
   };
 
