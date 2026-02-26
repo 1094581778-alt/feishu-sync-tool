@@ -46,6 +46,15 @@ export function extractAppConfig(body: any): AppConfig | null {
     return { appId, appSecret };
   }
   
+  // 备用：从环境变量获取
+  if (typeof process !== 'undefined' && process.env) {
+    const envAppId = process.env.FEISHU_APP_ID;
+    const envAppSecret = process.env.FEISHU_APP_SECRET;
+    if (envAppId && envAppSecret) {
+      return { appId: envAppId, appSecret: envAppSecret };
+    }
+  }
+  
   return null;
 }
 
