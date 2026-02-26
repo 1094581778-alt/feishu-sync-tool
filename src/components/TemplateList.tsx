@@ -1210,7 +1210,7 @@ export function TemplateList({
                                       <p className="text-xs font-medium text-orange-700 dark:text-orange-300 mb-1">⚠️ 飞书未使用字段：</p>
                                       <div className="flex flex-wrap gap-1">
                                         {(() => {
-                                          const feishuFields = template.tableFields?.[tableId] || [];
+                                          const feishuFields = Array.isArray(template.tableFields?.[tableId]) ? template.tableFields[tableId] : [];
                                           const matchedFeishuFields = matches.filter((m: any) => m.matched).map((m: any) => m.feishuField);
                                           const unusedFeishuFields = feishuFields.filter((f: any) => 
                                             !matchedFeishuFields.includes(f.field_name || f.name)

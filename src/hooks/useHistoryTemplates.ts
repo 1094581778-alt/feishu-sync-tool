@@ -105,7 +105,9 @@ export function useHistoryTemplates() {
           const mergedTemplates = [...templates, ...newTemplates];
           
           setTemplates(mergedTemplates);
-          localStorage.setItem(STORAGE_KEYS.FEISHU_HISTORY_TEMPLATES, JSON.stringify(mergedTemplates));
+          if (typeof window !== 'undefined') {
+            localStorage.setItem(STORAGE_KEYS.FEISHU_HISTORY_TEMPLATES, JSON.stringify(mergedTemplates));
+          }
           
           resolve({ success: true, count: newTemplates.length });
         } catch (err) {

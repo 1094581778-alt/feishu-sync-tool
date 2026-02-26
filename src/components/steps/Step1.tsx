@@ -147,7 +147,9 @@ export function Step1({
 
   const handleDeleteHistory = (index: number) => {
     const newHistory = urlHistory.filter((_, i) => i !== index);
-    localStorage.setItem('feishuUrlHistory', JSON.stringify(newHistory));
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('feishuUrlHistory', JSON.stringify(newHistory));
+    }
     setUrlHistory(newHistory);
   };
 
@@ -172,7 +174,9 @@ export function Step1({
           <button
             onClick={() => {
               if (confirm('确定要清除所有历史记录吗？')) {
-                localStorage.setItem('feishuUrlHistory', JSON.stringify([]));
+                if (typeof window !== 'undefined') {
+                  localStorage.setItem('feishuUrlHistory', JSON.stringify([]));
+                }
                 setUrlHistory([]);
               }
             }}

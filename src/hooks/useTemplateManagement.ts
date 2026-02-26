@@ -49,7 +49,9 @@ export function useTemplateManagement({
       const updatedTemplates = prev.map((temp) =>
         temp.id === templateId ? { ...temp, ...updates } : temp
       );
-      localStorage.setItem('feishuHistoryTemplates', JSON.stringify(updatedTemplates));
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('feishuHistoryTemplates', JSON.stringify(updatedTemplates));
+      }
       return updatedTemplates;
     });
   }, [setHistoryTemplates]);
