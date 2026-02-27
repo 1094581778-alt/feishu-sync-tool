@@ -234,17 +234,16 @@ export function Step2({
                       </div>
                     </div>
                     <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 px-3 text-xs"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleApplyTemplate(template);
-                        onNextStep();
-                      }}
-                    >
-                      应用
-                    </Button>
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 px-3 text-xs"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleApplyTemplate(template);
+                    }}
+                  >
+                    应用
+                  </Button>
                   </DropdownMenuItem>
                 ))}
                 {historyTemplates.length > 0 && <DropdownMenuSeparator />}
@@ -387,25 +386,16 @@ export function Step2({
         {/* 已选择提示 */}
         {selectedTableIds.length > 0 && (
           <div className="p-4 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <CheckCircle2 className="h-6 w-6 text-green-600" />
-                <div>
-                  <p className="text-sm font-medium text-green-900 dark:text-green-100">
-                    已选择 {selectedTableIds.length} 个工作表
-                  </p>
-                  <p className="text-xs text-green-800 dark:text-green-200">
-                    {selectedTableIds.map(id => tables.find(t => t.id === id)?.name).join('、')}
-                  </p>
-                </div>
+            <div className="flex items-center gap-3">
+              <CheckCircle2 className="h-6 w-6 text-green-600" />
+              <div>
+                <p className="text-sm font-medium text-green-900 dark:text-green-100">
+                  已选择 {selectedTableIds.length} 个工作表
+                </p>
+                <p className="text-xs text-green-800 dark:text-green-200">
+                  {selectedTableIds.map(id => tables.find(t => t.id === id)?.name).join('、')}
+                </p>
               </div>
-              <Button
-                onClick={onNextStep}
-                size="sm"
-              >
-                下一步
-                <ChevronRight className="h-4 w-4 ml-2" />
-              </Button>
             </div>
           </div>
         )}

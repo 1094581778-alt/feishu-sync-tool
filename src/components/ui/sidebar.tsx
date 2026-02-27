@@ -140,6 +140,7 @@ function SidebarProvider({
           }
           className={cn(
             'group/sidebar-wrapper has-data-[variant=inset]:bg-sidebar flex min-h-svh w-full',
+            'max-w-[1920px] max-h-[1080px]',
             className,
           )}
           {...props}

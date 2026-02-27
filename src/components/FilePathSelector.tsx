@@ -56,7 +56,7 @@ export function FilePathSelector({ templateId, filePath: initialFilePath, onFile
   const [customDateRange, setCustomDateRange] = useState({ start: new Date(), end: new Date() });
   const [customTimeRange, setCustomTimeRange] = useState({ start: '00:00', end: '23:59' });
   const [filterType, setFilterType] = useState<'created' | 'modified'>('modified');
-  const [pathPattern, setPathPattern] = useState(''); // 路径匹配模式
+  const [pathPattern, setPathPattern] = useState('');
 
   // 验证文件路径
   const validatePath = (inputPath: string): boolean => {
@@ -202,8 +202,6 @@ export function FilePathSelector({ templateId, filePath: initialFilePath, onFile
         onFileSelect(nativeFile);
       } else {
         // 浏览器环境：使用文件选择器
-        // 注意：浏览器无法直接通过路径读取文件，所以需要用户选择文件
-        // 这里我们触发一个文件选择器，然后传递选择的文件
         const selected = await fileSystemService.openFileDialog({
           multiple: false,
           filters: [
@@ -215,15 +213,12 @@ export function FilePathSelector({ templateId, filePath: initialFilePath, onFile
         });
         
         if (selected && typeof selected === 'string') {
-          // 用户选择了文件，但我们无法直接读取内容
-          // 创建一个模拟的File对象
           const mockFile = new File([''], file.name, { 
             type: getMimeType(file.name),
             lastModified: file.modifiedAt.getTime()
           });
           onFileSelect(mockFile);
         } else {
-          // 用户取消了选择
           return;
         }
       }
@@ -264,49 +259,87 @@ export function FilePathSelector({ templateId, filePath: initialFilePath, onFile
 
   // 自动加载文件列表 - 使用 debounce 效果
   useEffect(() => {
-    if (filePath && validatePath(filePath)) {
+    if (filePath && validatePath(filePath) && environment.isTauri) {
       const timer = setTimeout(() => {
         loadFiles();
-      }, 500); // 500ms 后自动加载
+      }, 500);
 
       return () => clearTimeout(timer);
     }
   }, [filePath]);
 
+  // 浏览器环境的文件选择处理
+  const handleBrowserFileSelect = async () => {
+    try {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.xlsx,.xls';
+      
+      input.onchange = async (e) => {
+        const files = (e.target as HTMLInputElement).files;
+        if (files && files.length > 0) {
+          onFileSelect(files[0]);
+          setSelectedFile(files[0].name);
+          setError('');
+        }
+      };
+      
+      input.click();
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : '选择文件失败';
+      setError(`选择文件失败: ${errorMessage}`);
+    }
+  };
 
 
   return (
     <div className="space-y-2">
-      {/* 文件路径输入区域 */}
-      <div className="flex items-center gap-2">
-        <Input
-          type="text"
-          placeholder="输入文件路径..."
-          value={filePath}
-          onChange={(e) => handlePathChange(e.target.value)}
-          className="flex-1 text-xs"
-        />
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={loadFiles}
-          disabled={loading}
-          className="text-xs"
-        >
-          {loading ? (
-            <>
-              <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
-              加载中...
-            </>
-          ) : (
-            <>
-              <FileIcon className="h-3.5 w-3.5 mr-1" />
-              加载文件
-            </>
-          )}
-        </Button>
-      </div>
+      {/* 文件路径输入区域 - 仅在 Tauri 环境显示 */}
+      {environment.isTauri ? (
+        <div className="flex items-center gap-2">
+          <Input
+            type="text"
+            placeholder="输入文件路径..."
+            value={filePath}
+            onChange={(e) => handlePathChange(e.target.value)}
+            className="flex-1 text-xs"
+          />
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={loadFiles}
+            disabled={loading}
+            className="text-xs"
+          >
+            {loading ? (
+              <>
+                <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                加载中...
+              </>
+            ) : (
+              <>
+                <FileIcon className="h-3.5 w-3.5 mr-1" />
+                加载文件
+              </>
+            )}
+          </Button>
+        </div>
+      ) : (
+        /* 浏览器环境：直接显示文件选择按钮 */
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="default"
+            size="sm"
+            onClick={handleBrowserFileSelect}
+            className="text-xs w-full"
+          >
+            <FileIcon className="h-3.5 w-3.5 mr-1" />
+            选择 Excel 文件
+          </Button>
+        </div>
+      )}
 
       {/* 错误提示 */}
       {error && (
@@ -318,8 +351,8 @@ export function FilePathSelector({ templateId, filePath: initialFilePath, onFile
         </div>
       )}
 
-      {/* 筛选器 */}
-      {showFileList && (
+      {/* 筛选器 - 仅在 Tauri 环境显示 */}
+      {showFileList && environment.isTauri && (
         <div className="flex flex-wrap items-center gap-2 text-xs">
           {/* 路径匹配筛选 */}
           <div className="relative w-full sm:w-auto flex-1">
@@ -378,8 +411,8 @@ export function FilePathSelector({ templateId, filePath: initialFilePath, onFile
         </div>
       )}
 
-      {/* 文件列表 */}
-      {showFileList && (
+      {/* 文件列表 - 仅在 Tauri 环境显示 */}
+      {showFileList && environment.isTauri && (
         <div className="bg-gray-50 dark:bg-gray-900/50 rounded-xl border-0 shadow-md hover:shadow-lg transition-all duration-300 p-2 max-h-60 overflow-y-auto">
           <div className="space-y-1">
             {filteredFiles.length === 0 ? (

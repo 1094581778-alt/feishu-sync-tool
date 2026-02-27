@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
+import { ResizableCard } from '@/components/ui/ResizableCard';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -208,75 +209,97 @@ export function Step2Enhanced({
     <div className="space-y-8 animate-in fade-in duration-500">
       {/* 历史模板区域 */}
       {historyTemplates.length > 0 && (
-        <Card className="p-6 border-gray-200 dark:border-gray-800 shadow-sm">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-blue-500/10">
-                <History className="h-5 w-5 text-blue-500" />
+        <ResizableCard
+          defaultWidth={500}
+          defaultHeight={280}
+          minWidth={300}
+          minHeight={180}
+          maxWidth={1400}
+          maxHeight={800}
+          storageKey="step2-history-templates-size"
+          className="p-0"
+        >
+          <div className="p-6 h-full flex flex-col">
+            <div className="flex items-center justify-between mb-6 flex-shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-blue-500/10">
+                  <History className="h-5 w-5 text-blue-500" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-foreground">历史模板</h3>
+                  <p className="text-sm text-muted-foreground">快速应用之前的配置模板</p>
+                </div>
               </div>
-              <div>
-                <h3 className="text-lg font-semibold text-foreground">历史模板</h3>
-                <p className="text-sm text-muted-foreground">快速应用之前的配置模板</p>
-              </div>
+              
+              <Button
+                onClick={onSaveTemplate}
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-2"
+              >
+                <Save className="h-4 w-4" />
+                保存当前为模板
+              </Button>
             </div>
             
-            <Button
-              onClick={onSaveTemplate}
-              variant="outline"
-              size="sm"
-              className="flex items-center gap-2"
-            >
-              <Save className="h-4 w-4" />
-              保存当前为模板
-            </Button>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {historyTemplates.map((template) => (
-              <Card
-                key={template.id}
-                className="p-4 border border-gray-200 dark:border-gray-800 hover:border-primary/50 transition-colors cursor-pointer group overflow-hidden"
-                onClick={() => handleApplyTemplate(template)}
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1 min-w-0 overflow-hidden">
-                    <div className="flex items-center gap-2 mb-2 min-w-0">
-                      <FileText className="h-4 w-4 text-primary flex-shrink-0" />
-                      <h4 className="font-medium text-foreground truncate">
-                        {template.name}
-                      </h4>
-                    </div>
-                    <p className="text-xs text-muted-foreground mb-3 line-clamp-2 break-words">
-                      {template.remark || '暂无描述'}
-                    </p>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
-                      <span className="flex items-center gap-1 flex-shrink-0">
-                        <Database className="h-3 w-3" />
-                        {template.selectedTableIds?.length || 0} 个表
-                      </span>
-                      <span className="flex items-center gap-1 flex-shrink-0">
-                        <FileType className="h-3 w-3" />
-                        {template.inputMode === 'file' ? '文件上传' : '内容粘贴'}
-                      </span>
-                    </div>
-                  </div>
-                  
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDeleteTemplate(template.id);
-                    }}
+            <div className="overflow-y-auto flex-1 pr-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                {historyTemplates.map((template) => (
+                  <ResizableCard
+                    key={template.id}
+                    defaultWidth={240}
+                    defaultHeight={180}
+                    minWidth={220}
+                    minHeight={150}
+                    maxWidth={360}
+                    maxHeight={280}
+                    storageKey={`template-card-${template.id}`}
+                    className="p-4"
                   >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </Card>
-            ))}
+                    <div 
+                      className="flex items-start justify-between gap-2 h-full cursor-pointer group"
+                      onClick={() => handleApplyTemplate(template)}
+                    >
+                      <div className="flex-1 min-w-0 overflow-hidden">
+                        <div className="flex items-center gap-2 mb-2 min-w-0">
+                          <FileText className="h-4 w-4 text-primary flex-shrink-0" />
+                          <h4 className="font-medium text-foreground truncate">
+                            {template.name}
+                          </h4>
+                        </div>
+                        <p className="text-xs text-muted-foreground mb-3 line-clamp-2 break-words">
+                          {template.remark || '暂无描述'}
+                        </p>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
+                          <span className="flex items-center gap-1 flex-shrink-0">
+                            <Database className="h-3 w-3" />
+                            {template.selectedTableIds?.length || 0} 个表
+                          </span>
+                          <span className="flex items-center gap-1 flex-shrink-0">
+                            <FileType className="h-3 w-3" />
+                            {template.inputMode === 'file' ? '文件上传' : '内容粘贴'}
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 z-10"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDeleteTemplate(template.id);
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </ResizableCard>
+                ))}
+              </div>
+            </div>
           </div>
-        </Card>
+        </ResizableCard>
       )}
 
       {/* 工作表选择区域 */}

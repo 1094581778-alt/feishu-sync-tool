@@ -1,5 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { ResizableCard } from '@/components/ui/ResizableCard';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -81,7 +82,14 @@ export function Step3({
     : [];
 
   return (
-    <Card className="p-8 sm:p-10">
+    <ResizableCard
+      defaultWidth={780}
+      defaultHeight={850}
+      minWidth={400}
+      minHeight={300}
+      storageKey="step3-card-size"
+      className="p-8 sm:p-10"
+    >
       <div className="space-y-6">
         <div>
           <h2 className="text-2xl sm:text-3xl font-bold text-foreground mb-3">
@@ -601,6 +609,6 @@ export function Step3({
           </div>
         )}
       </div>
-    </Card>
+    </ResizableCard>
   );
 }

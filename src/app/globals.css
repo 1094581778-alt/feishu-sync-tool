@@ -55,13 +55,13 @@
 
 :root {
   --radius: 0.75rem;
-  --background: oklch(0.99 0.005 250);
+  --background: #FAFAFA;
   --foreground: oklch(0.15 0.02 250);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.15 0.02 250);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.15 0.02 250);
-  --primary: #3370FF; /* 飞书品牌主色 */
+  --primary: #3370FF;
   --primary-foreground: oklch(1 0 0);
   --secondary: oklch(0.95 0.01 250);
   --secondary-foreground: oklch(0.15 0.02 250);
@@ -72,15 +72,15 @@
   --destructive: oklch(0.55 0.22 25);
   --border: oklch(0.88 0.01 250);
   --input: oklch(0.92 0.01 250);
-  --ring: #3370FF; /* 飞书品牌主色 */
-  --chart-1: #3370FF; /* 飞书品牌主色 */
+  --ring: #3370FF;
+  --chart-1: #3370FF;
   --chart-2: oklch(0.6 0.18 180);
   --chart-3: oklch(0.65 0.15 120);
   --chart-4: oklch(0.75 0.12 60);
   --chart-5: oklch(0.6 0.18 320);
-  --sidebar: oklch(0.99 0.005 250);
+  --sidebar: #F0F2F5;
   --sidebar-foreground: oklch(0.15 0.02 250);
-  --sidebar-primary: #3370FF; /* 飞书品牌主色 */
+  --sidebar-primary: #3370FF;
   --sidebar-primary-foreground: oklch(1 0 0);
   --sidebar-accent: oklch(0.95 0.01 250);
   --sidebar-accent-foreground: oklch(0.15 0.02 250);
@@ -95,7 +95,7 @@
   --card-foreground: oklch(0.95 0.01 250);
   --popover: oklch(0.15 0.01 250);
   --popover-foreground: oklch(0.95 0.01 250);
-  --primary: #5C8DFF; /* 飞书品牌次色，深色模式优化 */
+  --primary: #5C8DFF;
   --primary-foreground: oklch(0.1 0.01 250);
   --secondary: oklch(0.2 0.01 250);
   --secondary-foreground: oklch(0.95 0.01 250);
@@ -106,15 +106,15 @@
   --destructive: oklch(0.65 0.2 25);
   --border: oklch(0.25 0.01 250);
   --input: oklch(0.2 0.01 250);
-  --ring: #5C8DFF; /* 飞书品牌次色 */
-  --chart-1: #5C8DFF; /* 飞书品牌次色 */
+  --ring: #5C8DFF;
+  --chart-1: #5C8DFF;
   --chart-2: oklch(0.6 0.18 180);
   --chart-3: oklch(0.55 0.15 120);
   --chart-4: oklch(0.65 0.12 60);
   --chart-5: oklch(0.6 0.18 320);
-  --sidebar: oklch(0.15 0.01 250);
+  --sidebar: oklch(0.18 0.01 250);
   --sidebar-foreground: oklch(0.95 0.01 250);
-  --sidebar-primary: #5C8DFF; /* 飞书品牌次色 */
+  --sidebar-primary: #5C8DFF;
   --sidebar-primary-foreground: oklch(0.1 0.01 250);
   --sidebar-accent: oklch(0.2 0.01 250);
   --sidebar-accent-foreground: oklch(0.65 0.2 250);
@@ -147,7 +147,7 @@
   --chart-3: oklch(0.6 0.1 120);
   --chart-4: oklch(0.65 0.08 60);
   --chart-5: oklch(0.55 0.12 320);
-  --sidebar: oklch(0.98 0.02 85);
+  --sidebar: oklch(0.94 0.02 85);
   --sidebar-foreground: oklch(0.3 0.05 35);
   --sidebar-primary: oklch(0.55 0.15 25);
   --sidebar-primary-foreground: oklch(0.98 0.02 85);
@@ -182,7 +182,7 @@
   --chart-3: oklch(0.7 0.18 120);
   --chart-4: oklch(0.8 0.15 60);
   --chart-5: oklch(0.7 0.2 320);
-  --sidebar: oklch(0.12 0 0);
+  --sidebar: oklch(0.1 0 0);
   --sidebar-foreground: oklch(1 0 0);
   --sidebar-primary: oklch(0.75 0.25 250);
   --sidebar-primary-foreground: oklch(0.08 0 0);
@@ -581,4 +581,8 @@ body {
   .text-body-lg {
     font-size: 1rem;
   }
+}
+
+.flex-2 {
+  flex: 2;
 }

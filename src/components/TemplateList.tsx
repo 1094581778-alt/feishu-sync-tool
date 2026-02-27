@@ -42,7 +42,10 @@ import {
   Clock,
   PlayCircle,
   PauseCircle,
+  Zap,
 } from 'lucide-react';
+import { ScheduledTaskConfigDialog } from '@/components/scheduled-tasks';
+import type { ScheduledTaskConfig } from '@/types/scheduled-task';
 import type { HistoryTemplate, FeishuTable, FieldMatchResult } from '@/types';
 import { useTemplateManagement } from '@/hooks/useTemplateManagement';
 import { createFeishuTable } from '@/services/feishuApi';
@@ -122,6 +125,9 @@ export function TemplateList({
   const [currentTemplateForCreate, setCurrentTemplateForCreate] = useState<HistoryTemplate | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'complete' | 'incomplete'>('all');
+  const [showScheduledTaskDialog, setShowScheduledTaskDialog] = useState(false);
+  const [currentTemplateForScheduledTask, setCurrentTemplateForScheduledTask] = useState<HistoryTemplate | null>(null);
+  const [scheduledTasks, setScheduledTasks] = useState<Record<string, ScheduledTaskConfig>>({});
   
   // 模板过滤和搜索逻辑
   const filteredTemplates = useMemo(() => {
@@ -437,7 +443,7 @@ export function TemplateList({
 
       {/* 模版列表 */}
       <div className="mt-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
           {filteredTemplates.map((template) => {
             const sheetNames = templateSheetNames[template.id] || [];
             const hasSheetMappingErrors = (template.selectedTableIds || []).some((tableId: string) => {
@@ -464,10 +470,10 @@ export function TemplateList({
                     <div className="absolute inset-4 rounded-2xl border border-pink-300/30 animate-pulse" style={{animationDelay: '0.75s'}}></div>
                   </div>
                 )}
-                <div className="p-4">
+                <div className="p-5">
               {/* 保存成功提示 */}
                 {showSaveSuccess === template.id && (
-                  <div className="mb-3 p-2 bg-blue-50 dark:bg-blue-900/30 rounded-xl flex items-center gap-2">
+                  <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/30 rounded-xl flex items-center gap-2">
                     <Check className="h-4 w-4 text-blue-600 dark:text-blue-400 flex-shrink-0" />
                     <span className="text-xs text-blue-700 dark:text-blue-300">
                       {showSaveSuccess === template.id ? '配置已自动保存' : ''}
@@ -476,7 +482,7 @@ export function TemplateList({
                 )}
                 
                 {/* 头部信息 */}
-                <div className="flex items-start justify-between mb-3">
+                <div className="flex items-start justify-between mb-4">
                   <div className="flex-1 min-w-0">
                     <h4
                       className={`text-sm font-medium truncate ${
@@ -496,6 +502,20 @@ export function TemplateList({
                     </div>
                   </div>
                   <div className="flex items-center gap-2 ml-2">
+                    {/* 定时任务按钮 */}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => {
+                        setCurrentTemplateForScheduledTask(template);
+                        setShowScheduledTaskDialog(true);
+                      }}
+                      className="h-7 w-7"
+                      title="定时任务配置"
+                    >
+                      <Zap className={`h-3.5 w-3.5 ${scheduledTasks[template.id]?.enabled ? 'text-[#007DFF]' : 'text-gray-500'}`} />
+                    </Button>
                     {/* 编辑按钮 */}
                     <Button
                       type="button"
@@ -532,7 +552,7 @@ export function TemplateList({
                 )}
 
                 {/* 标签信息 */}
-                <div className="flex items-center gap-2 mb-4 flex-wrap">
+                <div className="flex items-center gap-2 mb-5 flex-wrap">
                   <span className="text-xs px-3 py-1 rounded-xl font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
                     {template.inputMode === 'file' ? '文件上传' : '粘贴内容'}
                   </span>
@@ -548,7 +568,7 @@ export function TemplateList({
                 </div>
 
                 {/* 操作区域 */}
-                <div className="space-y-4">
+                <div className="space-y-5">
                   {/* 配置子表按钮（如果还没有子表配置） */}
                   {(!template.tableToSheetMapping ||
                     Object.keys(template.tableToSheetMapping).length === 0) && (
@@ -680,7 +700,7 @@ export function TemplateList({
                   </div>
 
                   {/* 文件路径选择区域 */}
-                  <div className="mt-3">
+                  <div className="mt-4">
                     <h5 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
                       <FileText className="h-4 w-4" />
                       文件路径选择
@@ -715,7 +735,7 @@ export function TemplateList({
 
                   {/* 文件上传状态提示 */}
                   {templateFiles[template.id] ? (
-                    <div className="p-3 bg-blue-50 dark:bg-blue-900/30 rounded-xl transition-all duration-200">
+                    <div className="p-4 bg-blue-50 dark:bg-blue-900/30 rounded-xl transition-all duration-200">
                       <p className="text-sm text-blue-800 dark:text-blue-200 font-medium">
                         ✅ 文件已上传：
                         <span className="font-medium ml-1">
@@ -730,7 +750,7 @@ export function TemplateList({
                       )}
                     </div>
                   ) : (
-                    <div className="p-3 bg-gray-100 dark:bg-gray-800 rounded-xl transition-all duration-200">
+                    <div className="p-4 bg-gray-100 dark:bg-gray-800 rounded-xl transition-all duration-200">
                       <p className="text-sm text-gray-800 dark:text-gray-200 font-medium">
                         ⚠️ 未上传Excel文件
                       </p>
@@ -746,13 +766,13 @@ export function TemplateList({
                     templateFiles[template.id] &&
                     templateSheetNames[template.id] && (
                       <div
-                        className={`p-4 rounded-xl ${
+                        className={`p-5 rounded-xl ${
                           hasSheetMappingErrors
                             ? 'bg-gray-200 dark:bg-gray-800'
                             : 'bg-gray-50 dark:bg-gray-800/50'
                         } transition-all duration-200`}
                       >
-                        <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center justify-between mb-4">
                           <p
                             className={`text-sm font-medium ${
                               hasSheetMappingErrors
@@ -1523,6 +1543,24 @@ export function TemplateList({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* 定时任务配置对话框 */}
+      {currentTemplateForScheduledTask && (
+        <ScheduledTaskConfigDialog
+          open={showScheduledTaskDialog}
+          onOpenChange={setShowScheduledTaskDialog}
+          template={currentTemplateForScheduledTask}
+          existingTask={scheduledTasks[currentTemplateForScheduledTask.id]}
+          onSave={(task) => {
+            setScheduledTasks(prev => ({
+              ...prev,
+              [task.templateId]: task
+            }));
+            setShowSaveSuccess('定时任务已保存');
+            setTimeout(() => setShowSaveSuccess(null), 3000);
+          }}
+        />
+      )}
     </>
   );
 }
