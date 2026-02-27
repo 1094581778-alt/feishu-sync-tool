@@ -1,20 +1,26 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, ReactNode } from 'react';
 import { GripVertical } from 'lucide-react';
 
 interface SplitPaneProps {
-  left: React.ReactNode;
-  right: React.ReactNode;
+  left?: ReactNode;
+  right?: ReactNode;
+  children?: ReactNode;
   defaultLeftWidth?: number;
   minLeftWidth?: number;
   minRightWidth?: number;
   storageKey?: string;
+  orientation?: string;
+  defaultSize?: number;
+  minSize?: number;
+  maxSize?: number;
 }
 
 export function SplitPane({
   left,
   right,
+  children,
   defaultLeftWidth = 50,
   minLeftWidth = 20,
   minRightWidth = 20,
@@ -23,6 +29,19 @@ export function SplitPane({
   const [leftWidth, setLeftWidth] = useState(defaultLeftWidth);
   const [isDragging, setIsDragging] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  let leftContent: ReactNode = left;
+  let rightContent: ReactNode = right;
+
+  if (children) {
+    const childArray = Array.isArray(children) ? children : [children];
+    if (childArray.length >= 2) {
+      leftContent = childArray[0];
+      rightContent = childArray[1];
+    } else if (childArray.length === 1) {
+      leftContent = childArray[0];
+    }
+  }
 
   useEffect(() => {
     if (storageKey) {
@@ -86,7 +105,7 @@ export function SplitPane({
         className="overflow-hidden transition-all duration-150"
         style={{ width: `${leftWidth}%` }}
       >
-        {left}
+        {leftContent}
       </div>
       
       <div
@@ -103,7 +122,7 @@ export function SplitPane({
       <div
         className="overflow-hidden transition-all duration-150 flex-1"
       >
-        {right}
+        {rightContent}
       </div>
     </div>
   );
