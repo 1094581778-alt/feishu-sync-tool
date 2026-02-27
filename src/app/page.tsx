@@ -28,8 +28,7 @@ import {
   SidebarSeparator,
   SidebarTrigger,
 } from '@/components/ui/sidebar';
-import { Upload, Download, FileText, CheckCircle, AlertCircle, X, Settings, Save, Table, ChevronRight, Loader2, CheckCircle2, XCircle, ArrowLeft, ArrowRight, Trash2, Copy, FileSpreadsheet, History, Sun, Moon, Monitor, Zap, Coffee, Check, Code, Home, FileUp, Database, CloudUpload, Rocket, Clock, Users, BarChart, RefreshCw } from 'lucide-react';
-import { ToastProvider, useToast } from '@/components/ui/toast';
+import { Upload, Download, FileText, CheckCircle, AlertCircle, X, Settings, Save, Table, ChevronRight, Loader2, CheckCircle2, XCircle, ArrowLeft, ArrowRight, Trash2, Copy, FileSpreadsheet, History, Sun, Moon, Monitor, Zap, Coffee, Check, Code, Home, FileUp, Database, CloudUpload, Rocket, Clock, Users, BarChart } from 'lucide-react';
 import { FeishuConfig, SaveTemplateDialog, TemplateList } from '@/components';
 import { Step2Enhanced } from '@/components/steps/Step2Enhanced';
 import { parseFeishuUrl, formatFileSize } from '@/utils';
@@ -38,7 +37,6 @@ import { useFeishuConfig, useUrlHistory, useHistoryTemplates, useTheme } from '@
 import { useFeishuApi } from '@/hooks/useFeishuApi';
 import { TauriService, isTauri } from '@/services/tauri';
 import { usePerformanceMonitor } from '@/utils/performance';
-import { setupTauriFetch } from '@/utils/tauriFetch';
 
 // 从类型文件导入
 import type { Step, UploadResult, HistoryTemplate, FieldMatchResult, FeishuTable, FeishuField } from '@/types';
@@ -78,19 +76,9 @@ const Step4 = dynamic(() => import('@/components/steps/Step4').then(mod => ({ de
 
 
 
-function FileUploadPageContent() {
+export default function FileUploadPage() {
   // 使用性能监控
   usePerformanceMonitor('FileUploadPage');
-  
-  // 使用 Toast
-  const { addToast } = useToast();
-  
-  // 在 Tauri 环境中设置 fetch 拦截
-  useEffect(() => {
-    if (isTauri()) {
-      setupTauriFetch();
-    }
-  }, []);
   
   // 使用自定义 Hooks
   const { appId: feishuAppId, appSecret: feishuAppSecret, setAppId: setFeishuAppId, setAppSecret: setFeishuAppSecret, saveConfig: saveFeishuConfig } = useFeishuConfig();
@@ -237,11 +225,9 @@ function FileUploadPageContent() {
       if (result.success) {
         alert(`✅ 成功导入 ${result.count || 0} 个模板`);
         // 刷新模板列表
-        if (typeof window !== 'undefined') {
-          const savedTemplates = localStorage.getItem(STORAGE_KEYS.FEISHU_HISTORY_TEMPLATES);
-          if (savedTemplates) {
-            setHistoryTemplates(JSON.parse(savedTemplates));
-          }
+        const savedTemplates = localStorage.getItem(STORAGE_KEYS.FEISHU_HISTORY_TEMPLATES);
+        if (savedTemplates) {
+          setHistoryTemplates(JSON.parse(savedTemplates));
         }
       } else {
         alert(`❌ 导入失败: ${result.message}`);
@@ -471,8 +457,7 @@ function FileUploadPageContent() {
           // 如果正在应用模版，则恢复模版中保存的工作表选择
           if (applyingTemplate) {
             console.log('🔄 [请求 ' + requestId + '] 恢复模版工作表选择:', applyingTemplate.selectedTableIds);
-            const templateTableIds = Array.isArray(applyingTemplate.selectedTableIds) ? applyingTemplate.selectedTableIds : [];
-            setSelectedTableIds(templateTableIds);
+            setSelectedTableIds(applyingTemplate.selectedTableIds);
             setTableFields(applyingTemplate.tableFields || {});
             setTableFieldMatches(applyingTemplate.fieldMatchResults || {});
             setTableToSheetMapping(applyingTemplate.tableToSheetMapping || {});
@@ -570,7 +555,7 @@ function FileUploadPageContent() {
     console.log('🗑️ [handleClear] 清除内容被调用');
     
     // 从历史记录中移除当前链接
-    if (feishuUrl && Array.isArray(urlHistory) && urlHistory.includes(feishuUrl)) {
+    if (feishuUrl && urlHistory.includes(feishuUrl)) {
       const newHistory = removeFromHistory(feishuUrl, urlHistory);
       setUrlHistory(newHistory);
       console.log('🗑️ [历史记录] 已从历史记录中移除链接');
@@ -581,10 +566,8 @@ function FileUploadPageContent() {
     setTablesWithLog([]);
     setSelectedTableIds([]);
     setError('');
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem(STORAGE_KEYS.FEISHU_URL);
-      localStorage.removeItem(STORAGE_KEYS.FEISHU_TABLE_ID);
-    }
+    localStorage.removeItem(STORAGE_KEYS.FEISHU_URL);
+    localStorage.removeItem(STORAGE_KEYS.FEISHU_TABLE_ID);
   };
 
   // 从历史记录选择链接
@@ -671,7 +654,7 @@ function FileUploadPageContent() {
       // 先设置正在应用的模版，这样在获取工作表时可以恢复选择
       setApplyingTemplate(template);
       setParsedConfig(config);
-      if (template.feishuUrl && typeof window !== 'undefined') {
+      if (template.feishuUrl) {
         localStorage.setItem('feishuUrl', template.feishuUrl);
       }
       
@@ -1140,7 +1123,7 @@ function FileUploadPageContent() {
         }
       }
     }
-    setCurrentStep((prev: Step) => Math.min(prev + 1, 3) as Step);
+    setCurrentStep((prev: Step) => Math.min(prev + 1, 4) as Step);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -1568,110 +1551,6 @@ function FileUploadPageContent() {
     return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
   };
 
-  // 全部窗口恢复默认
-  const handleResetAll = async () => {
-    try {
-      // 清除所有卡片尺寸相关的 localStorage
-      const storageKeysToRemove = [
-        'step3-card-size',
-        'step2-history-templates-size',
-        'left-sidebar-size',
-        'middle-pane-size',
-      ];
-      
-      // 清除所有 template-card-* 的存储键
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key && key.startsWith('template-card-')) {
-          storageKeysToRemove.push(key);
-        }
-      }
-      
-      // 移除所有找到的存储键
-      storageKeysToRemove.forEach(key => {
-        localStorage.removeItem(key);
-      });
-
-      // 重置应用状态
-      setCurrentStep(1);
-      setSelectedFile(null);
-      setUploading(false);
-      setUploadResult(null);
-      setError('');
-      setFeishuUrl('');
-      setParsedConfig(null);
-      setTables([]);
-      setFields([]);
-      setRecords([]);
-      setSelectedTableIds([]);
-      setLoadingTables(false);
-      setLoadingFields(false);
-      setLoadingRecords(false);
-      setPastedContent('');
-      setInputMode('file');
-      setDebugInfo({});
-      setTableChangeCount(0);
-      setShowHistory(false);
-      setShowSaveTemplateModal(false);
-      setTemplateToEdit(null);
-      setActiveTab('history');
-      setApplyingTemplate(null);
-      setShowSheetMappingDropdown(null);
-      setShowTableSelectorDropdown(null);
-      setShowSheetSelectorDropdown(null);
-      setExpandedFieldDetails(null);
-      setShowSaveSuccess(null);
-      setTemplateFiles({});
-      setTemplateSheetNames({});
-      setTableFieldMatches({});
-      setTableFields({});
-      setUploadResults({});
-      setBatchUploadProgress('');
-      setTemplateSyncStatus({});
-      setExcelSheetNames([]);
-      setSelectedExcelSheet('');
-      setTableToSheetMapping({});
-      setShowAllFields({});
-      setFieldMatchResults([]);
-      setAnalyzingFile(false);
-
-      // 如果是 Tauri 环境，重置窗口大小和位置
-      if (isTauri()) {
-        try {
-          const { getCurrentWindow } = await import('@tauri-apps/api/window');
-          const window = getCurrentWindow();
-          
-          // 重置窗口大小为默认值
-          await window.setSize({ width: 1200, height: 800 });
-          
-          // 重置窗口位置到中心
-          await window.center();
-        } catch (windowError) {
-          console.error('重置窗口失败:', windowError);
-        }
-      }
-
-      // 显示成功提示
-      addToast({
-        title: '成功',
-        description: '正在恢复默认设置...',
-        type: 'success',
-      });
-
-      // 延迟刷新页面，让提示显示一下
-      setTimeout(() => {
-        window.location.reload();
-      }, 500);
-    } catch (error) {
-      console.error('重置失败:', error);
-      addToast({
-        title: '错误',
-        description: '重置失败，请重试',
-        type: 'error',
-      });
-    }
-  };
-
   // 获取选中的工作表列表
   const selectedTables = Array.isArray(tables) && Array.isArray(selectedTableIds) 
     ? tables.filter(t => selectedTableIds.includes(t.id))
@@ -1717,11 +1596,10 @@ function FileUploadPageContent() {
 
   return (
     <SidebarProvider>
-      <div className="h-screen flex bg-gray-50 dark:bg-gray-950">
+      <div className="min-h-screen flex bg-gray-50 dark:bg-gray-950">
         {/* 侧边栏导航 */}
         <Sidebar 
           className="border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900"
-          style={{ minWidth: '200px' }}
         >
           <SidebarContent className="py-5">
             {/* 顶部Logo和品牌区域 - 飞书风格 */}
@@ -1740,7 +1618,7 @@ function FileUploadPageContent() {
             {/* 主导航菜单 - 飞书风格 */}
             <SidebarGroup className="mb-6">
               <SidebarGroupLabel className="px-4 text-xs font-medium text-gray-500 dark:text-gray-400 mb-3">
-                功能区域
+                流程步骤
               </SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu className="space-y-1">
@@ -1751,11 +1629,6 @@ function FileUploadPageContent() {
                       onClick={() => {
                         setCurrentStep(1);
                         window.scrollTo({ top: 0, behavior: 'smooth' });
-                        addToast({
-                          message: '已返回第一页面',
-                          type: 'info',
-                          duration: 3000,
-                        });
                       }}
                       className="gap-3 px-4 py-2.5 h-auto hover:bg-gray-50 dark:hover:bg-gray-800/50"
                     >
@@ -1780,7 +1653,7 @@ function FileUploadPageContent() {
                             ? 'text-green-600 dark:text-green-400' 
                             : 'text-gray-700 dark:text-gray-300'
                         }`}>
-                          飞书多维表格同步
+                          配置链接
                         </div>
                         <div className="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">
                           输入飞书表格链接
@@ -1794,13 +1667,13 @@ function FileUploadPageContent() {
                     <SidebarMenuButton
                       isActive={currentStep === 2}
                       onClick={() => {
-                        if (parsedConfig) {
+                        if (parsedConfig && currentStep >= 2) {
                           setCurrentStep(2);
                           window.scrollTo({ top: 0, behavior: 'smooth' });
                         }
                       }}
                       disabled={!parsedConfig}
-                      className="gap-3 px-4 py-2.5 h-auto hover:bg-gray-50 dark:hover:bg-gray-800/50 hidden"
+                      className="gap-3 px-4 py-2.5 h-auto hover:bg-gray-50 dark:hover:bg-gray-800/50"
                     >
                       <div className={`flex items-center justify-center w-6 h-6 rounded-full text-xs font-semibold flex-shrink-0 transition-all duration-200 ${
                         currentStep === 2 
@@ -1837,11 +1710,11 @@ function FileUploadPageContent() {
                   </SidebarMenuItem>
 
                   {/* 步骤3：选择输入方式 */}
-                  <SidebarMenuItem style={{ display: 'none' }}>
+                  <SidebarMenuItem>
                     <SidebarMenuButton
                       isActive={currentStep === 3}
                       onClick={() => {
-                        if (selectedTableIds.length > 0) {
+                        if (selectedTableIds.length > 0 && currentStep >= 3) {
                           setCurrentStep(3);
                           window.scrollTo({ top: 0, behavior: 'smooth' });
                         }
@@ -1852,6 +1725,8 @@ function FileUploadPageContent() {
                       <div className={`flex items-center justify-center w-6 h-6 rounded-full text-xs font-semibold flex-shrink-0 transition-all duration-200 ${
                         currentStep === 3 
                           ? 'bg-blue-500 text-white shadow-sm' 
+                          : currentStep > 3 
+                          ? 'bg-green-500 text-white' 
                           : selectedTableIds.length === 0 
                           ? 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500' 
                           : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'
@@ -1866,6 +1741,8 @@ function FileUploadPageContent() {
                         <div className={`text-sm font-medium truncate ${
                           currentStep === 3 
                             ? 'text-blue-600 dark:text-blue-400' 
+                            : currentStep > 3 
+                            ? 'text-green-600 dark:text-green-400' 
                             : selectedTableIds.length === 0 
                             ? 'text-gray-400 dark:text-gray-500' 
                             : 'text-gray-700 dark:text-gray-300'
@@ -1874,6 +1751,45 @@ function FileUploadPageContent() {
                         </div>
                         <div className="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">
                           上传文件或粘贴内容
+                        </div>
+                      </div>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+
+                  {/* 步骤4：执行上传 */}
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      isActive={currentStep === 4}
+                      onClick={() => {
+                        if ((selectedFile || pastedContent) && currentStep >= 4) {
+                          setCurrentStep(4);
+                          window.scrollTo({ top: 0, behavior: 'smooth' });
+                        }
+                      }}
+                      disabled={!selectedFile && !pastedContent}
+                      className="gap-3 px-4 py-2.5 h-auto hover:bg-gray-50 dark:hover:bg-gray-800/50"
+                    >
+                      <div className={`flex items-center justify-center w-6 h-6 rounded-full text-xs font-semibold flex-shrink-0 transition-all duration-200 ${
+                        currentStep === 4 
+                          ? 'bg-blue-500 text-white shadow-sm' 
+                          : (!selectedFile && !pastedContent) 
+                          ? 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500' 
+                          : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'
+                      }`}>
+                        '4'
+                      </div>
+                      <div className="flex-1 text-left min-w-0">
+                        <div className={`text-sm font-medium truncate ${
+                          currentStep === 4 
+                            ? 'text-blue-600 dark:text-blue-400' 
+                            : (!selectedFile && !pastedContent) 
+                            ? 'text-gray-400 dark:text-gray-500' 
+                            : 'text-gray-700 dark:text-gray-300'
+                        }`}>
+                          执行上传
+                        </div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">
+                          确认并同步数据
                         </div>
                       </div>
                     </SidebarMenuButton>
@@ -1939,15 +1855,6 @@ function FileUploadPageContent() {
                     >
                       <Download className="h-4 w-4 text-gray-500 dark:text-gray-400 flex-shrink-0" />
                       <span className="font-medium text-sm">导出模板</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton
-                      onClick={() => handleResetAll()}
-                      className="gap-3 px-4 py-2.5"
-                    >
-                      <RefreshCw className="h-4 w-4 text-gray-500 dark:text-gray-400 flex-shrink-0" />
-                      <span className="font-medium text-sm">全部窗口恢复默认</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 </SidebarMenu>
@@ -2044,315 +1951,248 @@ function FileUploadPageContent() {
           </SidebarContent>
         </Sidebar>
 
-        {/* 左侧边栏调整手柄 */}
-        <div 
-          className="w-1 bg-gray-200 dark:bg-gray-800 cursor-col-resize hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors"
-          onMouseDown={(e) => {
-            e.preventDefault();
-            const startX = e.clientX;
-            const sidebarElement = document.querySelector('aside[class*="sidebar"]');
-            const mainElement = document.querySelector('main.flex-2');
-            
-            if (sidebarElement && mainElement) {
-              const sidebar = sidebarElement as HTMLElement;
-              const main = mainElement as HTMLElement;
-              const startSidebarWidth = sidebar.offsetWidth;
-              const startMainWidth = main.offsetWidth;
-              
-              const handleMouseMove = (moveEvent: MouseEvent) => {
-                const deltaX = moveEvent.clientX - startX;
-                const newSidebarWidth = Math.max(200, startSidebarWidth + deltaX);
-                const newMainWidth = Math.max(400, startMainWidth - deltaX);
-                
-                sidebar.style.width = `${newSidebarWidth}px`;
-                sidebar.style.flex = 'none';
-                main.style.width = `${newMainWidth}px`;
-                main.style.flex = 'none';
-              };
-              
-              const handleMouseUp = () => {
-                document.removeEventListener('mousemove', handleMouseMove);
-                document.removeEventListener('mouseup', handleMouseUp);
-              };
-              
-              document.addEventListener('mousemove', handleMouseMove);
-              document.addEventListener('mouseup', handleMouseUp);
-            }
-          }}
-        />
-
-        {/* 主内容区域 - 三栏布局 */}
-        <div className="flex-1 flex overflow-hidden">
-          {/* 中栏：主要步骤内容 */}
-          <main className="flex-2 overflow-auto relative" style={{ minWidth: '400px' }}>
-            {/* 固定定位导航栏 - 飞书风格 */}
-            <div className="fixed bottom-0 left-0 right-0 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border-t border-gray-200 dark:border-gray-800 z-50">
-              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="flex items-center justify-between h-16">
-                  {/* 左侧：步骤指示器 - 飞书风格 */}
-                  <div className="flex items-center gap-6">
-                    {[1, 2, 3].map((step) => (
-                      <button
-                        key={step}
-                        onClick={() => {
-                          if (step <= currentStep || (step === 2 && parsedConfig) || (step === 3 && selectedTableIds.length > 0)) {
-                            setCurrentStep(step as Step);
-                            window.scrollTo({ top: 0, behavior: 'smooth' });
-                          }
-                        }}
-                        disabled={
-                          (step > 1 && !parsedConfig) ||
-                          (step > 2 && selectedTableIds.length === 0)
+        {/* 主内容区域 */}
+        <main className="flex-1 overflow-auto relative">
+          {/* 固定定位导航栏 - 飞书风格 */}
+          <div className="fixed bottom-0 left-0 right-0 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border-t border-gray-200 dark:border-gray-800 z-50">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="flex items-center justify-between h-16">
+                {/* 左侧：步骤指示器 - 飞书风格 */}
+                <div className="flex items-center gap-6">
+                  {[1, 2, 3, 4].map((step) => (
+                    <button
+                      key={step}
+                      onClick={() => {
+                        if (step <= currentStep || (step === 2 && parsedConfig) || (step === 3 && selectedTableIds.length > 0) || (step === 4 && (selectedFile || pastedContent))) {
+                          setCurrentStep(step as Step);
+                          window.scrollTo({ top: 0, behavior: 'smooth' });
                         }
-                        className={`flex items-center gap-2 transition-all duration-200 ${
-                          step === currentStep
-                            ? 'text-primary'
-                            : 'text-gray-400 dark:text-gray-600'
-                        }`}
-                      >
-                        <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium transition-all duration-200 ${
-                          step === currentStep
-                            ? 'bg-primary text-white shadow-lg shadow-primary/25'
-                            : 'bg-gray-100 dark:bg-gray-800 text-gray-500'
-                        }`}>
-                          {step}
-                        </div>
-                        <span className={`text-sm font-medium hidden sm:block ${
-                          step === currentStep ? 'text-primary' : ''
-                        }`}>
-                          {step === 1 && '输入链接'}
-                          {step === 2 && '选择工作表'}
-                          {step === 3 && '字段匹配'}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
+                      }}
+                      disabled={
+                        (step > 1 && !parsedConfig) ||
+                        (step > 2 && selectedTableIds.length === 0) ||
+                        (step > 3 && !selectedFile && !pastedContent)
+                      }
+                      className={`flex items-center gap-2 transition-all duration-200 ${
+                        step === currentStep
+                          ? 'text-primary'
+                          : step < currentStep
+                          ? 'text-green-600 dark:text-green-400'
+                          : 'text-gray-400 dark:text-gray-600'
+                      }`}
+                    >
+                      <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium transition-all duration-200 ${
+                        step === currentStep
+                          ? 'bg-primary text-white shadow-lg shadow-primary/25'
+                          : step < currentStep
+                          ? 'bg-green-500 text-white'
+                          : 'bg-gray-100 dark:bg-gray-800 text-gray-500'
+                      }`}>
+                        {step < currentStep ? (
+                          <Check className="h-4 w-4" />
+                        ) : (
+                          step
+                        )}
+                      </div>
+                      <span className={`text-sm font-medium hidden sm:block ${
+                        step === currentStep ? 'text-primary' : ''
+                      }`}>
+                        {step === 1 && '输入链接'}
+                        {step === 2 && '选择工作表'}
+                        {step === 3 && '字段匹配'}
+                        {step === 4 && '执行上传'}
+                      </span>
+                    </button>
+                  ))}
+                </div>
 
-                  {/* 右侧：操作按钮 */}
-                  <div className="flex items-center gap-3">
-                    <Button
-                      onClick={prevStep}
-                      disabled={currentStep === 1}
-                      variant="outline"
-                      className="h-10 px-5 font-medium transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
-                    >
-                      <ArrowLeft className="h-4 w-4 mr-2" />
-                      上一步
-                    </Button>
-                    {currentStep === 1 && (
-                      <Button
-                        onClick={nextStep}
-                        disabled={
-                          currentStep === 3 ||
-                          (currentStep === 1 && !parsedConfig) ||
-                          (currentStep === 2 && selectedTableIds.length === 0)
-                        }
-                        className="h-10 px-6 font-medium bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary shadow-lg shadow-primary/20 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
-                      >
-                        下一步
-                        <ArrowRight className="h-4 w-4 ml-2" />
-                      </Button>
-                    )}
-                    <Button
-                      onClick={handleUpload}
-                      disabled={uploading || !selectedFile && !pastedContent}
-                      variant="default"
-                      className="h-10 px-6 font-medium bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400 shadow-lg shadow-green-500/20 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
-                    >
-                      {uploading ? (
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      ) : (
-                        <RefreshCw className="h-4 w-4 mr-2" />
-                      )}
-                      同步
-                    </Button>
-                  </div>
+                {/* 右侧：操作按钮 */}
+                <div className="flex items-center gap-3">
+                  <Button
+                    onClick={prevStep}
+                    disabled={currentStep === 1}
+                    variant="outline"
+                    className="h-10 px-5 font-medium transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+                  >
+                    <ArrowLeft className="h-4 w-4 mr-2" />
+                    上一步
+                  </Button>
+                  <Button
+                    onClick={nextStep}
+                    disabled={
+                      currentStep === 4 ||
+                      (currentStep === 1 && !parsedConfig) ||
+                      (currentStep === 2 && selectedTableIds.length === 0) ||
+                      (currentStep === 3 && (
+                        (inputMode === 'file' && !selectedFile) ||
+                        (inputMode === 'paste' && !pastedContent.trim())
+                      ))
+                    }
+                    className="h-10 px-6 font-medium bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary shadow-lg shadow-primary/20 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+                  >
+                    {currentStep === 4 ? '完成' : '下一步'}
+                    <ArrowRight className="h-4 w-4 ml-2" />
+                  </Button>
                 </div>
               </div>
             </div>
-
-            <div className="h-full flex flex-col px-6 sm:px-8 lg:px-10 py-6 sm:py-8 pb-24">
-              {/* 内容容器 - 飞书风格宽度 */}
-              <div className="w-full flex-1 flex flex-col">
-                {/* 顶部操作栏 - 飞书风格 */}
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8 pb-6 border-b border-gray-100 dark:border-gray-800">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-4 mb-2">
-                      <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-50 truncate tracking-tight">
-                        {currentStep === 1 && '配置飞书表格链接'}
-                        {currentStep === 2 && '选择目标工作表'}
-                        {currentStep === 3 && '数据同步流程'}
-                      </h1>
-                    </div>
-                    
-                    <p className="text-gray-600 dark:text-gray-400 text-base leading-relaxed">
-                      {currentStep === 1 && '请粘贴您的飞书多维表格链接，系统将自动解析并获取表格信息'}
-                      {currentStep === 2 && '从解析的表格中选择您需要同步数据的目标工作表'}
-                      {currentStep === 3 && '配置数据同步方式：选择上传文件或粘贴内容，并进行字段匹配和数据格式验证'}
-                    </p>
-                  </div>
-
-                  {/* 右侧操作按钮 */}
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    {/* 部署检查指示器 */}
-                    {previousDeploymentFound && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all duration-200 bg-red-50 dark:bg-red-950 border-red-200 dark:border-red-800 text-red-700 dark:text-red-300"
-                        title="检测到之前的部署"
-                      >
-                        <AlertCircle className="h-4 w-4" />
-                        <span className="hidden sm:inline">之前已部署</span>
-                      </Button>
-                    )}
-
-                    {/* 侧边栏触发器（移动端） */}
-                    <SidebarTrigger className="md:hidden" />
-                  </div>
-                </div>
-
-                {/* 当前步骤内容 */}
-                <div className="animate-in fade-in slide-in-from-bottom-2 duration-400 flex-1">
-                  {currentStep === 1 && (
-                    <Step1
-                      feishuUrl={feishuUrl}
-                      feishuAppId={feishuAppId}
-                      feishuAppSecret={feishuAppSecret}
-                      urlHistory={urlHistory}
-                      historyTemplates={historyTemplates}
-                      activeTab={activeTab}
-                      loadingTables={loadingTables}
-                      parsedConfig={parsedConfig}
-                      tables={tables}
-                      tableFields={tableFields}
-                      error={error}
-                      debugInfo={debugInfo}
-                      inputMode={inputMode}
-                      selectedFile={selectedFile}
-                      pastedContent={pastedContent}
-                      selectedTableIds={selectedTableIds}
-                      templateFiles={templateFiles}
-                      templateSheetNames={templateSheetNames}
-                      templateSyncStatus={templateSyncStatus}
-                      showSheetMappingDropdown={showSheetMappingDropdown}
-                      showTableSelectorDropdown={showTableSelectorDropdown}
-                      showSheetSelectorDropdown={showSheetSelectorDropdown}
-                      expandedFieldDetails={expandedFieldDetails}
-                      showSaveSuccess={showSaveSuccess}
-                      batchUploadProgress={batchUploadProgress}
-                      developerMode={developerMode}
-                      onFeishuUrlChange={setFeishuUrl}
-                      onParseUrl={handleParseUrl}
-                      onClear={handleClear}
-                      setActiveTab={setActiveTab}
-                      onSelectHistoryUrl={handleSelectHistoryUrl}
-                      setUrlHistory={setUrlHistory}
-                      setTemplateFiles={setTemplateFiles}
-                      setTemplateSheetNames={setTemplateSheetNames}
-                      setHistoryTemplates={setHistoryTemplates}
-                      setTemplateSyncStatus={setTemplateSyncStatus}
-                      setTableFields={setTableFields}
-                      handleImportTemplates={handleImportTemplates}
-                      handleExportTemplates={handleExportTemplates}
-                      handleBatchUpload={handleBatchUpload}
-                      handleDeleteTemplate={handleDeleteTemplate}
-                      setTemplateToEdit={setTemplateToEdit}
-                      setShowSaveTemplateModal={setShowSaveTemplateModal}
-                      setShowFeishuConfig={setShowFeishuConfig}
-                      setShowSheetMappingDropdown={setShowSheetMappingDropdown}
-                      setShowTableSelectorDropdown={setShowTableSelectorDropdown}
-                      setShowSheetSelectorDropdown={setShowSheetSelectorDropdown}
-                      setExpandedFieldDetails={setExpandedFieldDetails}
-                      setShowSaveSuccess={setShowSaveSuccess}
-                      setDebugInfo={setDebugInfo}
-                      onRefreshTables={handleRefreshTables}
-                    />
-                  )}
-                  {currentStep === 2 && renderStep2()}
-                  {currentStep === 3 && (
-                    <div className="p-8 text-center text-gray-500 dark:text-gray-400">
-                      <p>数据同步配置已移至右侧面板</p>
-                      <p className="text-sm mt-2">请在右侧面板中配置文件上传和字段匹配</p>
-                    </div>
-                  )}
-                </div>
-              </div>{/* 关闭内容容器 */}
-            </div>
-          </main>
-
-          {/* 右栏调整手柄 */}
-          <div 
-            className="w-1 bg-gray-200 dark:bg-gray-800 cursor-col-resize hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors"
-            onMouseDown={(e) => {
-              e.preventDefault();
-              const startX = e.clientX;
-              const mainElement = document.querySelector('main.flex-2');
-              const rightElement = document.querySelector('div.flex-2.border-l');
-              
-              if (mainElement && rightElement) {
-                const main = mainElement as HTMLElement;
-                const right = rightElement as HTMLElement;
-                const startMainWidth = main.offsetWidth;
-                const startRightWidth = right.offsetWidth;
-                
-                const handleMouseMove = (moveEvent: MouseEvent) => {
-                  const deltaX = moveEvent.clientX - startX;
-                  const newMainWidth = Math.max(400, startMainWidth + deltaX);
-                  const newRightWidth = Math.max(300, startRightWidth - deltaX);
-                  
-                  main.style.width = `${newMainWidth}px`;
-                  main.style.flex = 'none';
-                  right.style.width = `${newRightWidth}px`;
-                  right.style.flex = 'none';
-                };
-                
-                const handleMouseUp = () => {
-                  document.removeEventListener('mousemove', handleMouseMove);
-                  document.removeEventListener('mouseup', handleMouseUp);
-                };
-                
-                document.addEventListener('mousemove', handleMouseMove);
-                document.addEventListener('mouseup', handleMouseUp);
-              }
-            }}
-          />
-
-          {/* 右栏：详情/聊天区 */}
-          <div className="flex-2 border-l border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900" style={{ minWidth: '300px' }}>
-            <div className="h-full p-4 overflow-visible">
-              <Step3
-                inputMode={inputMode}
-                setInputMode={setInputMode}
-                selectedFile={selectedFile}
-                handleFileSelect={handleFileSelect}
-                handleDrop={handleDrop}
-                handleDragOver={handleDragOver}
-                fileInputRef={fileInputRef}
-                pastedContent={pastedContent}
-                setPastedContent={setPastedContent}
-                pasteAreaRef={pasteAreaRef}
-                selectedTableIds={selectedTableIds}
-                tables={tables}
-                tableFieldMatches={tableFieldMatches}
-                tableFields={tableFields}
-                tableToSheetMapping={tableToSheetMapping}
-                excelSheetNames={excelSheetNames}
-                applyingTemplate={applyingTemplate}
-                showAllFields={showAllFields}
-                setShowAllFields={setShowAllFields}
-                loadingFields={loadingFields}
-                fetchTableFields={fetchTableFields}
-                analyzeFieldMatchingForTable={analyzeFieldMatchingForTable}
-                setShowSaveTemplateModal={setShowSaveTemplateModal}
-                historyTemplates={historyTemplates}
-                handleDeleteTemplate={handleDeleteTemplate}
-                applySheetMappingFromTemplate={applySheetMappingFromTemplate}
-                developerMode={developerMode}
-              />
-            </div>
           </div>
-        </div>
+
+          <div className="h-full flex flex-col px-6 sm:px-8 lg:px-10 py-6 sm:py-8 pb-24">
+            {/* 内容容器 - 飞书风格宽度 */}
+            <div className="max-w-6xl mx-auto w-full flex-1 flex flex-col">
+              {/* 顶部操作栏 - 飞书风格 */}
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8 pb-6 border-b border-gray-100 dark:border-gray-800">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-4 mb-2">
+                    <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-50 truncate tracking-tight">
+                      {currentStep === 1 && '配置飞书表格链接'}
+                      {currentStep === 2 && '选择目标工作表'}
+                      {currentStep === 3 && '数据同步流程'}
+                      {currentStep === 4 && '执行数据上传'}
+                    </h1>
+                  </div>
+                  
+                  <p className="text-gray-600 dark:text-gray-400 text-base leading-relaxed">
+                    {currentStep === 1 && '请粘贴您的飞书多维表格链接，系统将自动解析并获取表格信息'}
+                    {currentStep === 2 && '从解析的表格中选择您需要同步数据的目标工作表'}
+                    {currentStep === 3 && '配置数据同步方式：选择上传文件或粘贴内容，并进行字段匹配和数据格式验证'}
+                    {currentStep === 4 && '确认所有配置后，执行数据上传到飞书表格'}
+                  </p>
+                </div>
+
+                {/* 右侧操作按钮 */}
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  {/* 部署检查指示器 */}
+                  {previousDeploymentFound && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all duration-200 bg-red-50 dark:bg-red-950 border-red-200 dark:border-red-800 text-red-700 dark:text-red-300"
+                      title="检测到之前的部署"
+                    >
+                      <AlertCircle className="h-4 w-4" />
+                      <span className="hidden sm:inline">之前已部署</span>
+                    </Button>
+                  )}
+
+                  {/* 侧边栏触发器（移动端） */}
+                  <SidebarTrigger className="md:hidden" />
+                </div>
+              </div>
+
+              {/* 当前步骤内容 */}
+              <div className="animate-in fade-in slide-in-from-bottom-2 duration-400 flex-1">
+                {currentStep === 1 && (
+                  <Step1
+                    feishuUrl={feishuUrl}
+                    feishuAppId={feishuAppId}
+                    feishuAppSecret={feishuAppSecret}
+                    urlHistory={urlHistory}
+                    historyTemplates={historyTemplates}
+                    activeTab={activeTab}
+                    loadingTables={loadingTables}
+                    parsedConfig={parsedConfig}
+                    tables={tables}
+                    tableFields={tableFields}
+                    error={error}
+                    debugInfo={debugInfo}
+                    inputMode={inputMode}
+                    selectedFile={selectedFile}
+                    pastedContent={pastedContent}
+                    selectedTableIds={selectedTableIds}
+                    templateFiles={templateFiles}
+                    templateSheetNames={templateSheetNames}
+                    templateSyncStatus={templateSyncStatus}
+                    showSheetMappingDropdown={showSheetMappingDropdown}
+                    showTableSelectorDropdown={showTableSelectorDropdown}
+                    showSheetSelectorDropdown={showSheetSelectorDropdown}
+                    expandedFieldDetails={expandedFieldDetails}
+                    showSaveSuccess={showSaveSuccess}
+                    batchUploadProgress={batchUploadProgress}
+                    developerMode={developerMode}
+                    onFeishuUrlChange={setFeishuUrl}
+                    onParseUrl={handleParseUrl}
+                    onClear={handleClear}
+                    setActiveTab={setActiveTab}
+                    onSelectHistoryUrl={handleSelectHistoryUrl}
+                    setUrlHistory={setUrlHistory}
+                    setTemplateFiles={setTemplateFiles}
+                    setTemplateSheetNames={setTemplateSheetNames}
+                    setHistoryTemplates={setHistoryTemplates}
+                    setTemplateSyncStatus={setTemplateSyncStatus}
+                    setTableFields={setTableFields}
+                    handleImportTemplates={handleImportTemplates}
+                    handleExportTemplates={handleExportTemplates}
+                    handleBatchUpload={handleBatchUpload}
+                    handleDeleteTemplate={handleDeleteTemplate}
+                    setTemplateToEdit={setTemplateToEdit}
+                    setShowSaveTemplateModal={setShowSaveTemplateModal}
+                    setShowFeishuConfig={setShowFeishuConfig}
+                    setShowSheetMappingDropdown={setShowSheetMappingDropdown}
+                    setShowTableSelectorDropdown={setShowTableSelectorDropdown}
+                    setShowSheetSelectorDropdown={setShowSheetSelectorDropdown}
+                    setExpandedFieldDetails={setExpandedFieldDetails}
+                    setShowSaveSuccess={setShowSaveSuccess}
+                    setDebugInfo={setDebugInfo}
+                    onRefreshTables={handleRefreshTables}
+                  />
+                )}
+                {currentStep === 2 && renderStep2()}
+                {currentStep === 3 && (
+                  <Step3
+                    inputMode={inputMode}
+                    setInputMode={setInputMode}
+                    selectedFile={selectedFile}
+                    handleFileSelect={handleFileSelect}
+                    handleDrop={handleDrop}
+                    handleDragOver={handleDragOver}
+                    fileInputRef={fileInputRef}
+                    pastedContent={pastedContent}
+                    setPastedContent={setPastedContent}
+                    pasteAreaRef={pasteAreaRef}
+                    selectedTableIds={selectedTableIds}
+                    tables={tables}
+                    tableFieldMatches={tableFieldMatches}
+                    tableFields={tableFields}
+                    tableToSheetMapping={tableToSheetMapping}
+                    excelSheetNames={excelSheetNames}
+                    applyingTemplate={applyingTemplate}
+                    showAllFields={showAllFields}
+                    setShowAllFields={setShowAllFields}
+                    loadingFields={loadingFields}
+                    fetchTableFields={fetchTableFields}
+                    analyzeFieldMatchingForTable={analyzeFieldMatchingForTable}
+                    setShowSaveTemplateModal={setShowSaveTemplateModal}
+                    historyTemplates={historyTemplates}
+                    handleDeleteTemplate={handleDeleteTemplate}
+                    applySheetMappingFromTemplate={applySheetMappingFromTemplate}
+                    developerMode={developerMode}
+                  />
+                )}
+                {currentStep === 4 && (
+                  <Step4
+                    inputMode={inputMode}
+                    selectedFile={selectedFile}
+                    pastedContent={pastedContent}
+                    selectedTableIds={selectedTableIds}
+                    tables={tables}
+                    uploadResults={uploadResults}
+                    uploading={uploading}
+                    uploadResult={uploadResult}
+                    error={error}
+                    handleUpload={handleUpload}
+                    setUploadResults={setUploadResults}
+                    setSelectedFile={setSelectedFile}
+                    setPastedContent={setPastedContent}
+                    setCurrentStep={setCurrentStep}
+                    developerMode={developerMode}
+                  />
+                )}
+              </div>
+            </div>{/* 关闭内容容器 */}
+          </div>
+        </main>
       </div>
 
       {/* 模版保存弹窗 */}
@@ -2385,13 +2225,5 @@ function FileUploadPageContent() {
         />
       )}
     </SidebarProvider>
-  );
-}
-
-export default function FileUploadPage() {
-  return (
-    <ToastProvider>
-      <FileUploadPageContent />
-    </ToastProvider>
   );
 }

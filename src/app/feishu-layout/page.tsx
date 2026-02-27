@@ -8,7 +8,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
-import { Search, Home, Star, MessageSquare, FileText, Calendar, Clock, Users, MoreHorizontal, Plus, Send, Smile, Paperclip, ChevronRight, ArrowRight, Coffee, Zap, Database, CloudUpload, BarChart, Settings, LogOut, Moon, Sun, User, Bell, HelpCircle, Gift, Upgrade } from 'lucide-react';
+import { Search, Home, Star, MessageSquare, FileText, Calendar, Clock, Users, MoreHorizontal, Plus, Send, Smile, Paperclip, ChevronRight, ArrowRight, Coffee, Zap, Database, CloudUpload, BarChart, Settings, LogOut, Moon, Sun, User, Bell, HelpCircle, Gift } from 'lucide-react';
 import { ResizableCard } from '@/components/ui/ResizableCard';
 import { SplitPane } from '@/components/ui/SplitPane';
 

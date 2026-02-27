@@ -54,7 +54,9 @@
         "role": "Editor"
       }
     ],
-    "resources": []
+    "resources": {
+      "server/*": "./"
+    }
   },
   "plugins": {
     "updater": {

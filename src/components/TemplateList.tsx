@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { FilePathSelector } from '@/components/FilePathSelector';
+import { ResizableCard } from '@/components/ui/ResizableCard';
 import { CreateNewTableDialog } from '@/components/CreateNewTableDialog';
 import {
   DropdownMenu,
@@ -457,11 +458,19 @@ export function TemplateList({
             });
 
             return (
-              <div key={template.id} className={`overflow-hidden hover:shadow-md transition-all duration-300 bg-gray-50 dark:bg-gray-900/50 border-0 rounded-2xl ${
-                hasSheetMappingErrors 
-                  ? 'relative' 
-                  : ''
-              }`}>
+              <ResizableCard
+                key={template.id}
+                defaultWidth={400}
+                defaultHeight={300}
+                minWidth={300}
+                minHeight={200}
+                storageKey={`templatelist-card-${template.id}`}
+                className={`overflow-hidden hover:shadow-md transition-all duration-300 bg-gray-50 dark:bg-gray-900/50 border-0 rounded-2xl ${
+                  hasSheetMappingErrors 
+                    ? 'relative' 
+                    : ''
+                }`}
+              >
                 {hasSheetMappingErrors && (
                   <div className="absolute inset-0 rounded-2xl pointer-events-none overflow-hidden">
                     <div className="absolute inset-0 rounded-2xl bg-gradient-radial from-red-500/60 via-pink-400/40 to-transparent animate-[fog-dissolve_3s_ease-in-out_infinite]"></div>
@@ -1497,7 +1506,7 @@ export function TemplateList({
                 )}
               </div>
             </div>
-              </div>
+              </ResizableCard>
           );
         })}
         </div>

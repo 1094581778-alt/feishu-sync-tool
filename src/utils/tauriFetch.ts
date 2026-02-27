@@ -2,19 +2,11 @@ import { fetch as tauriFetch } from '@tauri-apps/plugin-http';
 
 const isTauri = typeof window !== 'undefined' && (window as any).__TAURI__ !== undefined;
 
-const API_BASE_URL = 'http://localhost:3000';
-
 export async function httpFetch(url: string, options: RequestInit = {}): Promise<Response> {
   if (!isTauri) {
     return fetch(url, options);
   }
 
-  let fullUrl = url;
-  
-  if (url.startsWith('/api/')) {
-    fullUrl = `${API_BASE_URL}${url}`;
-  }
-  
   const method = options.method || 'GET';
   const headers: Record<string, string> = {};
   
@@ -30,7 +22,7 @@ export async function httpFetch(url: string, options: RequestInit = {}): Promise
   }
 
   try {
-    const response = await tauriFetch(fullUrl, {
+    const response = await tauriFetch(url, {
       method,
       headers,
       body: options.body as string | undefined,
@@ -68,12 +60,12 @@ export function setupTauriFetch() {
         url = (input as Request).url;
       }
       
-      if (url.startsWith('/api/')) {
-        console.log('[Tauri] Proxying API request:', url);
-        return httpFetch(url, init || {});
+      if (url.startsWith('/api/') || url.startsWith('/_next/')) {
+        console.warn('[Tauri] Skipping local path:', url);
+        return originalFetch!(input, init);
       }
       
-      return originalFetch!(input, init);
+      return httpFetch(url, init || {});
     };
     console.log('[Tauri] Fetch interceptor installed');
   }

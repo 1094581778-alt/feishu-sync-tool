@@ -6,49 +6,7 @@ extern crate winreg;
 #[cfg(target_os = "windows")]
 use winreg::{enums::*, RegKey};
 
-use std::process::Command;
-use std::thread;
-use std::time::Duration;
-
-fn start_next_server() {
-    let exe_dir = std::env::current_exe()
-        .ok()
-        .and_then(|p| p.parent().map(|p| p.to_path_buf()))
-        .unwrap_or_default();
-    
-    let server_path = exe_dir.join("server.js");
-    
-    if server_path.exists() {
-        let server_dir = exe_dir.clone();
-        
-        std::thread::spawn(move || {
-            let child = Command::new("node")
-                .arg(server_path)
-                .current_dir(server_dir)
-                .spawn();
-            
-            match child {
-                Ok(_) => {
-                    println!("Next.js server started successfully");
-                }
-                Err(e) => {
-                    eprintln!("Failed to start Next.js server: {}", e);
-                }
-            }
-        });
-        
-        thread::sleep(Duration::from_secs(3));
-    } else {
-        eprintln!("Next.js server.js not found at: {:?}", server_path);
-    }
-}
-
 fn main() {
-    #[cfg(target_os = "windows")]
-    {
-        start_next_server();
-    }
-    
     tauri::Builder::default()
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_shell::init())

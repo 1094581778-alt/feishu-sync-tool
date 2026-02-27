@@ -1,18 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
-import { Calendar, Clock, Folder, File as FileIcon, Filter, Loader2, X, Check, AlertCircle } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Folder, File as FileIcon, Loader2, X, Check } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format } from 'date-fns';
 import { 
   fileSystemService, 
   environment, 
-  FileSystemEntry,
-  filterFiles as fsFilterFiles,
-  formatFileSize 
+  FileSystemEntry
 } from '@/services/file-system';
 
 // 兼容类型
@@ -45,7 +40,7 @@ interface FilePathSelectorProps {
   onFilePathChange?: (path: string) => void;
 }
 
-export function FilePathSelector({ templateId, filePath: initialFilePath, onFileSelect, onPathChange, onFilePathChange }: FilePathSelectorProps) {
+export function FilePathSelector({ filePath: initialFilePath, onFileSelect, onPathChange, onFilePathChange }: FilePathSelectorProps) {
   const [filePath, setFilePath] = useState(initialFilePath || '');
   const [files, setFiles] = useState<FileInfo[]>([]);
   const [loading, setLoading] = useState(false);
@@ -53,10 +48,12 @@ export function FilePathSelector({ templateId, filePath: initialFilePath, onFile
   const [selectedFile, setSelectedFile] = useState<string>('');
   const [showFileList, setShowFileList] = useState(false);
   const [timeFilter, setTimeFilter] = useState<'all' | 'today' | 'yesterday' | 'thisWeek' | 'thisMonth' | 'custom'>('all');
-  const [customDateRange, setCustomDateRange] = useState({ start: new Date(), end: new Date() });
   const [customTimeRange, setCustomTimeRange] = useState({ start: '00:00', end: '23:59' });
   const [filterType, setFilterType] = useState<'created' | 'modified'>('modified');
   const [pathPattern, setPathPattern] = useState('');
+  
+  // 自动识别文件路径对应的文件
+  const [autoDetectedFile, setAutoDetectedFile] = useState<string>('');
 
   // 验证文件路径
   const validatePath = (inputPath: string): boolean => {
@@ -72,7 +69,7 @@ export function FilePathSelector({ templateId, filePath: initialFilePath, onFile
   };
 
   // 加载文件列表
-  const loadFiles = async () => {
+  const loadFiles = useCallback(async () => {
     if (!validatePath(filePath)) {
       setError('请输入有效的文件路径，例如：C:\\Users\\Documents\\Excel文件');
       return;
@@ -120,7 +117,7 @@ export function FilePathSelector({ templateId, filePath: initialFilePath, onFile
     } finally {
       setLoading(false);
     }
-  };
+  }, [filePath]);
 
   // 筛选文件
   const filteredFiles = files.filter(file => {
@@ -161,12 +158,12 @@ export function FilePathSelector({ templateId, filePath: initialFilePath, onFile
         dateMatch = dateToCheck >= monthStart;
         break;
       case 'custom':
-        // 结合日期和时间范围
-        const startDateTime = new Date(customDateRange.start);
+        // 结合日期和时间范围（使用当前日期）
+        const startDateTime = new Date();
         const [startHour, startMinute] = customTimeRange.start.split(':').map(Number);
         startDateTime.setHours(startHour, startMinute, 0, 0);
 
-        const endDateTime = new Date(customDateRange.end);
+        const endDateTime = new Date();
         const [endHour, endMinute] = customTimeRange.end.split(':').map(Number);
         endDateTime.setHours(endHour, endMinute, 59, 999);
 
@@ -224,6 +221,7 @@ export function FilePathSelector({ templateId, filePath: initialFilePath, onFile
       }
       
       setSelectedFile(file.name);
+      setAutoDetectedFile('');
       setError('');
       console.log('✅ [FilePathSelector] 文件选择成功:', file.name);
     } catch (err) {
@@ -257,6 +255,50 @@ export function FilePathSelector({ templateId, filePath: initialFilePath, onFile
     onFilePathChange?.(inputPath);
   };
 
+  // 自动检测文件路径是否对应具体文件
+  useEffect(() => {
+    const detectFileFromPath = async () => {
+      if (!filePath || !validatePath(filePath) || !environment.isTauri) {
+        setAutoDetectedFile('');
+        return;
+      }
+
+      try {
+        // 检查路径是否存在
+        const pathExists = await fileSystemService.exists(filePath);
+        if (!pathExists) {
+          setAutoDetectedFile('');
+          return;
+        }
+
+        // 获取文件信息，检查是否是文件（而不是目录）
+        try {
+          const fileInfo = await fileSystemService.getFileInfo(filePath);
+          if (!fileInfo.isDirectory) {
+            // 提取文件名
+            const fileName = filePath.split('\\').pop() || filePath.split('/').pop() || '';
+            if (fileName && (fileName.endsWith('.xlsx') || fileName.endsWith('.xls'))) {
+              setAutoDetectedFile(fileName);
+              setSelectedFile(fileName);
+            } else {
+              setAutoDetectedFile('');
+            }
+          } else {
+            setAutoDetectedFile('');
+          }
+        } catch {
+        // 如果获取文件信息失败，假设不是文件
+        setAutoDetectedFile('');
+      }
+      } catch (err) {
+        console.error('❌ [FilePathSelector] 自动检测文件失败:', err);
+        setAutoDetectedFile('');
+      }
+    };
+
+    detectFileFromPath();
+  }, [filePath]);
+
   // 自动加载文件列表 - 使用 debounce 效果
   useEffect(() => {
     if (filePath && validatePath(filePath) && environment.isTauri) {
@@ -266,7 +308,7 @@ export function FilePathSelector({ templateId, filePath: initialFilePath, onFile
 
       return () => clearTimeout(timer);
     }
-  }, [filePath]);
+  }, [filePath, loadFiles]);
 
   // 浏览器环境的文件选择处理
   const handleBrowserFileSelect = async () => {
@@ -280,6 +322,7 @@ export function FilePathSelector({ templateId, filePath: initialFilePath, onFile
         if (files && files.length > 0) {
           onFileSelect(files[0]);
           setSelectedFile(files[0].name);
+          setAutoDetectedFile('');
           setError('');
         }
       };
@@ -306,7 +349,7 @@ export function FilePathSelector({ templateId, filePath: initialFilePath, onFile
           />
           <Button
             type="button"
-            variant="outline"
+            variant={selectedFile || autoDetectedFile ? "default" : "outline"}
             size="sm"
             onClick={loadFiles}
             disabled={loading}
@@ -320,7 +363,7 @@ export function FilePathSelector({ templateId, filePath: initialFilePath, onFile
             ) : (
               <>
                 <FileIcon className="h-3.5 w-3.5 mr-1" />
-                加载文件
+                {selectedFile || autoDetectedFile ? '已选择文件' : '加载文件'}
               </>
             )}
           </Button>
@@ -336,7 +379,7 @@ export function FilePathSelector({ templateId, filePath: initialFilePath, onFile
             className="text-xs w-full"
           >
             <FileIcon className="h-3.5 w-3.5 mr-1" />
-            选择 Excel 文件
+            {selectedFile || autoDetectedFile ? '已选择文件' : '选择 Excel 文件'}
           </Button>
         </div>
       )}
@@ -366,7 +409,7 @@ export function FilePathSelector({ templateId, filePath: initialFilePath, onFile
           </div>
 
           {/* 时间筛选 */}
-          <Select value={timeFilter} onValueChange={(value) => setTimeFilter(value as any)}>
+          <Select value={timeFilter} onValueChange={(value) => setTimeFilter(value as typeof timeFilter)}>
             <SelectTrigger className="w-[120px] h-7">
               <SelectValue placeholder="时间筛选" />
             </SelectTrigger>
@@ -399,7 +442,7 @@ export function FilePathSelector({ templateId, filePath: initialFilePath, onFile
             </div>
           )}
 
-          <Select value={filterType} onValueChange={(value) => setFilterType(value as any)}>
+          <Select value={filterType} onValueChange={(value) => setFilterType(value as typeof filterType)}>
             <SelectTrigger className="w-[100px] h-7">
               <SelectValue placeholder="筛选类型" />
             </SelectTrigger>
@@ -448,11 +491,14 @@ export function FilePathSelector({ templateId, filePath: initialFilePath, onFile
       )}
 
       {/* 选择结果 */}
-      {selectedFile && (
+      {(selectedFile || autoDetectedFile) && (
         <div className="p-2 bg-blue-50 dark:bg-blue-900/30 rounded-xl">
           <p className="text-xs text-blue-700 dark:text-blue-300 flex items-center gap-1">
             <Check className="h-3 w-3" />
-            已选择文件: {selectedFile}
+            已选择文件: {selectedFile || autoDetectedFile}
+            {autoDetectedFile && !selectedFile && (
+              <span className="text-xs text-gray-500 ml-1">(自动识别)</span>
+            )}
           </p>
         </div>
       )}

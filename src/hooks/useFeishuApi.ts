@@ -13,7 +13,7 @@ import type {
   CreateFieldRequest,
   RecordQueryOptions
 } from '@/services/feishu/types';
-import { FeishuError, FeishuErrorCode } from '../services/feishu/errors';
+import { FeishuError, FeishuErrorCode } from '@/services/feishu/errors';
 import { feishuLogger, FeishuLogCategory } from '@/services/feishu/logger';
 
 interface UseFeishuApiOptions {
@@ -167,7 +167,7 @@ async function callFeishuApi<T = any>(
         feishuLogger.warn(FeishuLogCategory.API, `API调用失败，${delay}ms后重试`, {
           retryCount: attempt - 1,
           maxRetries,
-          errorCode: error instanceof Error ? error.message : String(error),
+          errorMessage: error instanceof Error ? error.message : String(error),
           endpoint,
         });
         
