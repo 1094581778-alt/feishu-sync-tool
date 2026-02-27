@@ -4,37 +4,55 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { GripVertical } from 'lucide-react';
 
 interface SplitPaneProps {
-  left: React.ReactNode;
-  right: React.ReactNode;
+  children?: React.ReactNode;
+  left?: React.ReactNode;
+  right?: React.ReactNode;
+  orientation?: 'horizontal' | 'vertical';
+  defaultSize?: number;
   defaultLeftWidth?: number;
+  minSize?: number;
   minLeftWidth?: number;
   minRightWidth?: number;
+  maxSize?: number;
   storageKey?: string;
 }
 
 export function SplitPane({
+  children,
   left,
   right,
-  defaultLeftWidth = 50,
-  minLeftWidth = 20,
-  minRightWidth = 20,
+  orientation = 'horizontal',
+  defaultSize = 50,
+  defaultLeftWidth,
+  minSize = 20,
+  minLeftWidth,
+  minRightWidth,
+  maxSize = 80,
   storageKey,
 }: SplitPaneProps) {
-  const [leftWidth, setLeftWidth] = useState(defaultLeftWidth);
+  const effectiveMinLeftWidth = minLeftWidth ?? minSize;
+  const effectiveMinRightWidth = minRightWidth ?? minSize;
+  const effectiveDefaultWidth = defaultLeftWidth ?? defaultSize;
+  
+  const [leftWidth, setLeftWidth] = useState(effectiveDefaultWidth);
   const [isDragging, setIsDragging] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  const childArray = Array.isArray(children) ? children : children ? [children] : [];
+  const leftContent = childArray[0] || left;
+  const rightContent = childArray[1] || right;
 
   useEffect(() => {
     if (storageKey) {
       const saved = localStorage.getItem(storageKey);
       if (saved) {
         const parsed = parseFloat(saved);
-        if (!isNaN(parsed) && parsed >= minLeftWidth && parsed <= 100 - minRightWidth) {
+        if (!isNaN(parsed) && parsed >= effectiveMinLeftWidth && parsed <= 100 - effectiveMinRightWidth) {
           setLeftWidth(parsed);
         }
       }
     }
-  }, [storageKey, minLeftWidth, minRightWidth]);
+  }, [storageKey, effectiveMinLeftWidth, effectiveMinRightWidth]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -50,12 +68,12 @@ export function SplitPane({
     const newLeftWidth = ((e.clientX - containerRect.left) / containerWidth) * 100;
 
     const constrainedWidth = Math.max(
-      minLeftWidth,
-      Math.min(100 - minRightWidth, newLeftWidth)
+      effectiveMinLeftWidth,
+      Math.min(100 - effectiveMinRightWidth, newLeftWidth)
     );
 
     setLeftWidth(constrainedWidth);
-  }, [isDragging, minLeftWidth, minRightWidth]);
+  }, [isDragging, effectiveMinLeftWidth, effectiveMinRightWidth]);
 
   const handleMouseUp = useCallback(() => {
     if (isDragging && storageKey) {
@@ -86,7 +104,7 @@ export function SplitPane({
         className="overflow-hidden transition-all duration-150"
         style={{ width: `${leftWidth}%` }}
       >
-        {left}
+        {leftContent}
       </div>
       
       <div
@@ -103,7 +121,7 @@ export function SplitPane({
       <div
         className="overflow-hidden transition-all duration-150 flex-1"
       >
-        {right}
+        {rightContent}
       </div>
     </div>
   );

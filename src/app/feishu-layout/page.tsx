@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
+import { SidebarProvider, Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -177,10 +177,11 @@ export default function FeishuLayout() {
   );
 
   return (
-    <div className={`flex h-screen overflow-hidden ${
-      darkMode ? 'dark bg-gray-950' : 'bg-gray-50'
-    }`}>
-      <SplitPane
+    <SidebarProvider>
+      <div className={`flex h-screen overflow-hidden ${
+        darkMode ? 'dark bg-gray-950' : 'bg-gray-50'
+      }`}>
+        <SplitPane
         orientation="vertical"
         defaultSize={256}
         minSize={200}
@@ -450,5 +451,6 @@ export default function FeishuLayout() {
         </SplitPane>
       </SplitPane>
     </div>
+    </SidebarProvider>
   );
 }
