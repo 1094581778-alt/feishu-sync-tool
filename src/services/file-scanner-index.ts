@@ -5,6 +5,7 @@
 
 import { isTauri } from './tauri';
 import { FileScanner as BrowserFileScanner } from './file-scanner';
+import type { FileInfo, FileFilterConfig, FileNameMatchMode, TimeFilterQuickOption } from '@/types/scheduled-task';
 
 // 创建一个包装对象，支持同步和异步使用
 class FileScannerWrapper {
@@ -36,7 +37,7 @@ class FileScannerWrapper {
     return this.loadPromise;
   }
 
-  async scanPath(path: string): Promise<{ success: boolean; files: any[]; error?: string }> {
+  async scanPath(path: string): Promise<{ success: boolean; files: FileInfo[]; error?: string }> {
     if (isTauri()) {
       const scanner = await this.loadTauriScanner();
       return scanner.scanPath(path);
@@ -44,23 +45,23 @@ class FileScannerWrapper {
     return BrowserFileScanner.scanPath(path);
   }
 
-  filterFiles(files: any[], filterConfig: any): any[] {
+  filterFiles(files: FileInfo[], filterConfig: FileFilterConfig): FileInfo[] {
     if (isTauri()) {
       return this.tauriScanner?.filterFiles(files, filterConfig) || BrowserFileScanner.filterFiles(files, filterConfig);
     }
     return BrowserFileScanner.filterFiles(files, filterConfig);
   }
 
-  searchFiles(files: any[], searchQuery: string): any[] {
+  searchFiles(files: FileInfo[], searchQuery: string): FileInfo[] {
     if (isTauri()) {
       return this.tauriScanner?.searchFiles(files, searchQuery) || BrowserFileScanner.searchFiles(files, searchQuery);
     }
     return BrowserFileScanner.searchFiles(files, searchQuery);
   }
 
-  sortFiles(files: any[], sortBy: string, sortOrder: string): any[] {
+  sortFiles(files: FileInfo[], sortBy: string, sortOrder: string): FileInfo[] {
     if (isTauri()) {
-      return this.tauriScanner?.sortFiles(files, sortBy, sortOrder) || BrowserFileScanner.sortFiles(files, sortBy, sortOrder);
+      return this.tauriScanner?.sortFiles(files, sortBy as 'name' | 'createdAt' | 'size', sortOrder as 'asc' | 'desc') || BrowserFileScanner.sortFiles(files, sortBy, sortOrder);
     }
     return BrowserFileScanner.sortFiles(files, sortBy, sortOrder);
   }
