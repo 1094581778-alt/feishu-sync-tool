@@ -278,8 +278,13 @@ export function FilePathSelector({ templateId, filePath: initialFilePath, onFile
       input.onchange = async (e) => {
         const files = (e.target as HTMLInputElement).files;
         if (files && files.length > 0) {
-          onFileSelect(files[0]);
-          setSelectedFile(files[0].name);
+          const file = files[0];
+          onFileSelect(file);
+          setSelectedFile(file.name);
+          // 在浏览器环境中，设置一个模拟路径（包含文件名）
+          const mockPath = `选择文件：${file.name}`;
+          setFilePath(mockPath);
+          onFilePathChange?.(mockPath);
           setError('');
         }
       };

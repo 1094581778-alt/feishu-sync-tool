@@ -54,6 +54,11 @@ export interface ScheduledTaskConfig {
   fileFilter: FileFilterConfig;
   validateBeforeTrigger: boolean;
   maxRetries: number;
+  feishuConfig?: {
+    spreadsheetToken: string;
+    appId?: string;
+    appSecret?: string;
+  };
   createdAt: string;
   updatedAt: string;
   lastRunAt?: string;

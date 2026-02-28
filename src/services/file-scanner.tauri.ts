@@ -1,49 +1,12 @@
 /**
- * 文件扫描服务 - 浏览器版本
- * 
- * 注意：此文件仅用于浏览器开发环境，返回模拟数据
- * Tauri 桌面应用会使用 file-scanner.tauri.ts 中的真实文件扫描
+ * 文件扫描服务 - Tauri 版本
+ * 仅在 Tauri 桌面应用中使用
  */
 
 import type { FileInfo, FileFilterConfig, FileNameMatchMode, TimeFilterQuickOption } from '@/types/scheduled-task';
-import { isTauri } from './tauri';
+import { readDir, stat } from '@tauri-apps/plugin-fs';
 
-// 模拟数据
-const getMockFiles = (path: string): FileInfo[] => [
-  {
-    name: '成交数据 -2026_02_28.xlsx',
-    path: path + '/成交数据 -2026_02_28.xlsx',
-    size: 1024000,
-    createdAt: new Date(Date.now() - 3600000).toISOString(),
-    modifiedAt: new Date(Date.now() - 3600000).toISOString(),
-    extension: 'xlsx',
-    isExcel: true,
-  },
-  {
-    name: '订单数据 -2026_02_28.xlsx',
-    path: path + '/订单数据 -2026_02_28.xlsx',
-    size: 512000,
-    createdAt: new Date(Date.now() - 7200000).toISOString(),
-    modifiedAt: new Date(Date.now() - 7200000).toISOString(),
-    extension: 'xlsx',
-    isExcel: true,
-  },
-  {
-    name: '库存数据 -2026_02_27.xls',
-    path: path + '/库存数据 -2026_02_27.xls',
-    size: 256000,
-    createdAt: new Date(Date.now() - 86400000).toISOString(),
-    modifiedAt: new Date(Date.now() - 86400000).toISOString(),
-    extension: 'xls',
-    isExcel: true,
-  },
-];
-
-// 导出一个统一的 FileScanner 类
-// 在浏览器环境中使用模拟数据
-// 在 Tauri 环境中，这个文件不会被使用，而是使用 file-scanner.tauri.ts
-
-export class FileScanner {
+export class FileScannerTauri {
   private static formatFileSize(bytes: number): string {
     if (bytes === 0) return '0 B';
     const k = 1024;
@@ -103,16 +66,39 @@ export class FileScanner {
   }
 
   /**
-   * 扫描本地路径下的文件（浏览器版本，仅返回模拟数据）
+   * 扫描本地路径下的文件（Tauri 真实实现）
    */
   static async scanPath(path: string): Promise<{ success: boolean; files: FileInfo[]; error?: string }> {
     try {
-      console.log('[FileScanner] 浏览器环境，返回模拟数据');
-      const mockFiles = getMockFiles(path);
-      await new Promise(resolve => setTimeout(resolve, 500));
+      const files: FileInfo[] = [];
+      
+      const entries = await readDir(path);
+      
+      for (const entry of entries) {
+        if (entry.isDirectory) {
+          continue;
+        }
+        
+        const filePath = `${path}/${entry.name}`;
+        const fileStat = await stat(filePath);
+        
+        const extension = this.getFileExtension(entry.name);
+        const isExcel = this.isExcelFile(entry.name);
+        
+        files.push({
+          name: entry.name,
+          path: filePath,
+          size: fileStat.size || 0,
+          createdAt: fileStat.birthtime?.toISOString() || new Date().toISOString(),
+          modifiedAt: fileStat.mtime?.toISOString() || new Date().toISOString(),
+          extension,
+          isExcel,
+        });
+      }
+
       return {
         success: true,
-        files: mockFiles,
+        files,
       };
     } catch (error) {
       console.error('文件扫描失败:', error);
@@ -158,7 +144,7 @@ export class FileScanner {
           comparison = a.name.localeCompare(b.name);
           break;
         case 'createdAt':
-          comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+          comparison = new Date(a.createdAt).getTime() - new Date(a.createdAt).getTime();
           break;
         case 'size':
           comparison = a.size - b.size;

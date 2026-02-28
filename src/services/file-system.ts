@@ -156,18 +156,21 @@ class TauriFileSystem implements FileSystemService {
   private path: any = null;
   
   constructor() {
-    // 动态导入 Tauri 插件，避免在浏览器环境中报错
+    // 仅在 Tauri 环境中加载模块
     if (isTauri()) {
+      // 使用延迟加载，避免在浏览器中导入
       this.loadTauriModules();
     }
   }
   
   private async loadTauriModules() {
     try {
+      // 使用 eval 避免编译时被处理
+      const importFunc = eval('import');
       const [fsModule, dialogModule, pathModule] = await Promise.all([
-        import('@tauri-apps/plugin-fs'),
-        import('@tauri-apps/plugin-dialog'),
-        import('@tauri-apps/api/path')
+        importFunc('@tauri-apps/plugin-fs'),
+        importFunc('@tauri-apps/plugin-dialog'),
+        importFunc('@tauri-apps/api/path')
       ]);
       
       this.fs = fsModule;

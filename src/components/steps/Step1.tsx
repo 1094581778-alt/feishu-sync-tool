@@ -568,7 +568,7 @@ export function Step1({
               <div className="flex-1 min-w-0 pt-0.5">
                 <p className="text-sm font-semibold text-red-900 dark:text-red-100 leading-relaxed">操作遇到问题</p>
                 <p className="text-sm text-red-700 dark:text-red-300 mt-1.5 leading-relaxed">
-                  {typeof error === 'string' ? error : (error?.message || JSON.stringify(error) || '发生未知错误')}
+                  {typeof error === 'string' ? error : (error as any)?.message || JSON.stringify(error) || '发生未知错误'}
                 </p>
                 
                 {error && typeof error === 'string' && (error.includes('链接') || error.includes('URL')) ? (

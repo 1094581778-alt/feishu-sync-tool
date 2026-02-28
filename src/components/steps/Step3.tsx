@@ -82,7 +82,7 @@ export function Step3({
 
   return (
     <div className="w-full h-full flex flex-col">
-      <div className="flex-1 overflow-auto space-y-6 p-2">
+      <div className="flex-1 overflow-auto space-y-6 pr-1">
         <div>
           <h2 className="text-lg font-bold text-foreground mb-2">
             选择输入方式

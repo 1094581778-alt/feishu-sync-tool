@@ -1,13 +1,13 @@
 {
   "$schema": "https://schema.tauri.app/config/2.0.0",
   "productName": "飞书数据同步工具",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "identifier": "com.feishu.sync-tool",
   "build": {
     "beforeDevCommand": "pnpm dev",
     "devUrl": "http://localhost:5000",
-    "beforeBuildCommand": "",
-    "frontendDist": "dist/server/app"
+    "beforeBuildCommand": "pnpm build",
+    "frontendDist": "../.next/standalone"
   },
   "app": {
     "windows": [

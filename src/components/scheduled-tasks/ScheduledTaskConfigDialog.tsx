@@ -48,10 +48,17 @@ import {
   Trash2,
   FolderOpen,
   Zap,
+  FileSearch,
+  Filter,
+  Timer,
+  CheckCircle,
+  AlertCircle,
+  Play,
 } from "lucide-react";
 import { FilePreviewWindow } from "./FilePreviewWindow";
 import { FileFilterConfig } from "./FileFilterConfig";
-import { FileScanner } from "@/services/file-scanner";
+import { FileScanner } from "@/services/file-scanner-index";
+import { scheduledTaskEngine } from "@/services/scheduled-task-engine";
 
 interface ScheduledTaskConfigDialogProps {
   open: boolean;
@@ -119,6 +126,75 @@ export function ScheduledTaskConfigDialog({
   const [filteredFiles, setFilteredFiles] = useState<FileInfo[]>([]);
   const [allFiles, setAllFiles] = useState<FileInfo[]>([]);
   const [activeTab, setActiveTab] = useState("basic");
+  const [nextRunTime, setNextRunTime] = useState<Date | null>(null);
+  const [countdown, setCountdown] = useState<string>("");
+
+  // 计算下次运行时间和倒计时
+  useEffect(() => {
+    if (task.enabled && task.triggerMode === "fixed_time" && task.fixedTimeConfig) {
+      const calculateNextRunTime = () => {
+        const now = new Date();
+        const [hours, minutes] = task.fixedTimeConfig!.time.split(':').map(Number);
+        let nextTime = new Date();
+        nextTime.setHours(hours, minutes, 0, 0);
+
+        // 如果今天的这个时间已经过了，设置为明天
+        if (nextTime <= now) {
+          nextTime.setDate(nextTime.getDate() + 1);
+        }
+
+        // 根据周期调整
+        if (task.fixedTimeConfig!.period === "weekly") {
+          // 设置为下周一
+          const daysUntilMonday = (1 - nextTime.getDay() + 7) % 7 || 7;
+          nextTime.setDate(nextTime.getDate() + daysUntilMonday);
+        } else if (task.fixedTimeConfig!.period === "monthly") {
+          // 设置为下个月 1 号
+          nextTime.setMonth(nextTime.getMonth() + 1);
+          nextTime.setDate(1);
+        }
+
+        return nextTime;
+      };
+
+      const updateCountdown = () => {
+        const next = calculateNextRunTime();
+        setNextRunTime(next);
+
+        const now = new Date();
+        const diff = next.getTime() - now.getTime();
+
+        if (diff > 0) {
+          const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+          const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+          const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+          const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+          let countdownStr = '';
+          if (days > 0) {
+            countdownStr = `${days}天 ${hours}时 ${minutes}分 ${seconds}秒`;
+          } else if (hours > 0) {
+            countdownStr = `${hours}时 ${minutes}分 ${seconds}秒`;
+          } else if (minutes > 0) {
+            countdownStr = `${minutes}分 ${seconds}秒`;
+          } else {
+            countdownStr = `${seconds}秒`;
+          }
+
+          setCountdown(countdownStr);
+        } else {
+          setCountdown("即将运行...");
+        }
+      };
+
+      updateCountdown();
+      const interval = setInterval(updateCountdown, 1000);
+      return () => clearInterval(interval);
+    } else {
+      setNextRunTime(null);
+      setCountdown("");
+    }
+  }, [task.enabled, task.triggerMode, task.fixedTimeConfig]);
 
   useEffect(() => {
     if (existingTask) {
@@ -181,8 +257,49 @@ export function ScheduledTaskConfigDialog({
   }, [task.paths, task.fileFilter]);
 
   const handleSave = () => {
+    // 验证 Cron 表达式
+    if (task.triggerMode === 'cron' && task.cronExpression) {
+      const { valid, error } = scheduledTaskEngine.validateCronExpression(task.cronExpression);
+      if (!valid) {
+        alert(`Cron 表达式无效：${error}`);
+        return;
+      }
+    }
+
+    // 验证必要字段
+    if (!task.name) {
+      alert('请输入任务名称');
+      return;
+    }
+
+    if (task.paths.length === 0) {
+      alert('请至少添加一个文件路径');
+      return;
+    }
+
+    // 从 localStorage 获取模板的飞书配置
+    let feishuConfig;
+    try {
+      const stored = localStorage.getItem('feishuHistoryTemplates');
+      if (stored) {
+        const templates = JSON.parse(stored);
+        const templateData = templates.find((t: any) => t.id === task.templateId);
+        if (templateData) {
+          feishuConfig = {
+            spreadsheetToken: templateData.spreadsheetToken,
+            appId: templateData.appId,
+            appSecret: templateData.appSecret,
+          };
+        }
+      }
+    } catch (error) {
+      console.error('获取模板飞书配置失败:', error);
+    }
+
     onSave({
       ...task,
+      feishuConfig,
+      nextRunAt: scheduledTaskEngine.calculateNextRun(task)?.toISOString(),
       updatedAt: new Date().toISOString(),
     });
     onOpenChange(false);
@@ -273,6 +390,38 @@ export function ScheduledTaskConfigDialog({
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="pt-0 space-y-4">
+                  {/* 下次运行时间和倒计时 */}
+                  {task.enabled && countdown && (
+                    <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <Timer className="h-4 w-4 text-blue-600" />
+                          <span className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                            距离下次运行
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1 text-blue-600">
+                          <Play className="h-3 w-3" />
+                          <span className="text-xs font-medium">自动运行中</span>
+                        </div>
+                      </div>
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                          {countdown}
+                        </span>
+                        {nextRunTime && (
+                          <span className="text-xs text-blue-600 dark:text-blue-400">
+                            (下次运行：{nextRunTime.toLocaleString('zh-CN', { 
+                              month: 'short', 
+                              day: 'numeric', 
+                              hour: '2-digit', 
+                              minute: '2-digit' 
+                            })})
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
                   <RadioGroup
                     value={task.triggerMode}
                     onValueChange={(value: TriggerMode) =>
@@ -354,6 +503,24 @@ export function ScheduledTaskConfigDialog({
                               placeholder="例如：0 30 14 * * *"
                               className="h-9 bg-[#F7F8FA] border-[#E5E6EB] rounded-lg text-sm font-mono"
                             />
+                            {task.cronExpression && (
+                              <div className="flex items-center gap-2">
+                                {(() => {
+                                  const validation = scheduledTaskEngine.validateCronExpression(task.cronExpression!);
+                                  return validation.valid ? (
+                                    <div className="flex items-center gap-1 text-green-600 text-xs">
+                                      <CheckCircle className="h-3 w-3" />
+                                      <span>Cron 表达式有效</span>
+                                    </div>
+                                  ) : (
+                                    <div className="flex items-center gap-1 text-red-600 text-xs">
+                                      <AlertCircle className="h-3 w-3" />
+                                      <span>无效：{validation.error}</span>
+                                    </div>
+                                  );
+                                })()}
+                              </div>
+                            )}
                             <p className="text-xs text-gray-500">
                               示例：0 30 14 * * * 表示每天 14:30 触发
                             </p>

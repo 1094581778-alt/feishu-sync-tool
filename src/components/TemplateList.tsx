@@ -27,6 +27,12 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
   Upload,
   Download,
   FileText,
@@ -45,7 +51,9 @@ import {
   PauseCircle,
   Zap,
 } from 'lucide-react';
-import { ScheduledTaskConfigDialog } from '@/components/scheduled-tasks';
+import { EnvironmentNotice } from '@/components/EnvironmentNotice';
+import { ScheduledTaskConfigDialog, ScheduledTaskManager } from '@/components/scheduled-tasks';
+import { useScheduledTaskManager } from '@/hooks/useScheduledTaskManager';
 import type { ScheduledTaskConfig } from '@/types/scheduled-task';
 import type { HistoryTemplate, FeishuTable, FieldMatchResult } from '@/types';
 import { useTemplateManagement } from '@/hooks/useTemplateManagement';
@@ -128,7 +136,14 @@ export function TemplateList({
   const [filterStatus, setFilterStatus] = useState<'all' | 'complete' | 'incomplete'>('all');
   const [showScheduledTaskDialog, setShowScheduledTaskDialog] = useState(false);
   const [currentTemplateForScheduledTask, setCurrentTemplateForScheduledTask] = useState<HistoryTemplate | null>(null);
-  const [scheduledTasks, setScheduledTasks] = useState<Record<string, ScheduledTaskConfig>>({});
+  const [showTaskManager, setShowTaskManager] = useState(false);
+  
+  // 使用定时任务管理 Hook
+  const {
+    tasks: scheduledTasks,
+    addTask,
+    updateTask,
+  } = useScheduledTaskManager();
   
   // 模板过滤和搜索逻辑
   const filteredTemplates = useMemo(() => {
@@ -325,6 +340,9 @@ export function TemplateList({
 
   return (
     <>
+      {/* 环境提示 */}
+      <EnvironmentNotice />
+      
       {/* 顶部工具栏 */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-5 bg-gray-50 dark:bg-gray-800/50 rounded-2xl">
         {/* 搜索和筛选 */}
@@ -414,6 +432,17 @@ export function TemplateList({
           >
             <CheckCircle className="h-4 w-4 mr-1.5" />
             全部同步
+          </Button>
+          {/* 定时任务管理按钮 */}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setShowTaskManager(true)}
+            className="h-10 px-4 text-xs bg-purple-600 text-white border-0 rounded-xl hover:bg-purple-700 dark:bg-purple-700 dark:hover:bg-purple-600"
+          >
+            <Zap className="h-4 w-4 mr-1.5" />
+            定时任务
           </Button>
           {/* 清除全部模板按钮 */}
           <Button
@@ -511,19 +540,30 @@ export function TemplateList({
                     </div>
                   </div>
                   <div className="flex items-center gap-2 ml-2">
-                    {/* 定时任务按钮 */}
+                    {/* 定时任务按钮 - 增强视觉 */}
                     <Button
                       type="button"
-                      variant="ghost"
-                      size="icon"
+                      variant="outline"
+                      size="sm"
                       onClick={() => {
                         setCurrentTemplateForScheduledTask(template);
                         setShowScheduledTaskDialog(true);
                       }}
-                      className="h-7 w-7"
-                      title="定时任务配置"
+                      className={`h-8 px-3 gap-2 transition-all duration-300 ${
+                        scheduledTasks.find(t => t.templateId === template.id)?.enabled
+                          ? 'bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300 hover:from-blue-100 hover:to-indigo-100 dark:hover:from-blue-900/30 dark:hover:to-indigo-900/30 shadow-sm hover:shadow-md'
+                          : 'bg-gray-50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+                      }`}
+                      title={scheduledTasks.find(t => t.templateId === template.id)?.enabled ? '定时任务已启用' : '定时任务未配置'}
                     >
-                      <Zap className={`h-3.5 w-3.5 ${scheduledTasks[template.id]?.enabled ? 'text-[#007DFF]' : 'text-gray-500'}`} />
+                      <Zap className={`h-4 w-4 ${
+                        scheduledTasks.find(t => t.templateId === template.id)?.enabled
+                          ? 'text-[#007DFF] animate-pulse'
+                          : 'text-gray-500'
+                      }`} />
+                      <span className="text-xs font-medium">
+                        {scheduledTasks.find(t => t.templateId === template.id)?.enabled ? '定时运行中' : '定时任务'}
+                      </span>
                     </Button>
                     {/* 编辑按钮 */}
                     <Button
@@ -534,10 +574,10 @@ export function TemplateList({
                         setTemplateToEdit(template);
                         setShowSaveTemplateModal(true);
                       }}
-                      className="h-7 w-7"
+                      className="h-8 w-8"
                       title="编辑模版"
                     >
-                      <Settings className="h-3.5 w-3.5" />
+                      <Settings className="h-4 w-4" />
                     </Button>
                     {/* 删除按钮 */}
                     <Button
@@ -545,7 +585,7 @@ export function TemplateList({
                       variant="ghost"
                       size="icon"
                       onClick={() => handleDeleteTemplate(template.id)}
-                      className="h-7 w-7 text-red-600 hover:text-red-800 dark:text-red-400"
+                      className="h-8 w-8 text-red-600 hover:text-red-800 dark:text-red-400"
                       title="删除模版"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
@@ -1559,17 +1599,43 @@ export function TemplateList({
           open={showScheduledTaskDialog}
           onOpenChange={setShowScheduledTaskDialog}
           template={currentTemplateForScheduledTask}
-          existingTask={scheduledTasks[currentTemplateForScheduledTask.id]}
+          existingTask={scheduledTasks.find(t => t.templateId === currentTemplateForScheduledTask.id)}
           onSave={(task) => {
-            setScheduledTasks(prev => ({
-              ...prev,
-              [task.templateId]: task
-            }));
+            const existing = scheduledTasks.find(t => t.id === task.id);
+            if (existing) {
+              updateTask(task);
+            } else {
+              addTask(task);
+            }
             setShowSaveSuccess('定时任务已保存');
             setTimeout(() => setShowSaveSuccess(null), 3000);
           }}
         />
       )}
+
+      {/* 定时任务管理对话框 */}
+      <Dialog open={showTaskManager} onOpenChange={setShowTaskManager}>
+        <DialogContent className="max-w-5xl max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Zap className="h-5 w-5 text-[#007DFF]" />
+              定时任务管理
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto mt-4">
+            <ScheduledTaskManager
+              onEditTask={(task) => {
+                const template = historyTemplates?.find(t => t.id === task.templateId);
+                if (template) {
+                  setCurrentTemplateForScheduledTask(template);
+                  setShowScheduledTaskDialog(true);
+                  setShowTaskManager(false);
+                }
+              }}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

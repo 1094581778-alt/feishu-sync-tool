@@ -39,6 +39,7 @@ import { useFeishuConfig, useUrlHistory, useHistoryTemplates, useTheme } from '@
 import { useFeishuApi } from '@/hooks/useFeishuApi';
 import { TauriService, isTauri } from '@/services/tauri';
 import { usePerformanceMonitor } from '@/utils/performance';
+import { useToast } from '@/components/ui/toast';
 
 // 从类型文件导入
 import type { Step, UploadResult, HistoryTemplate, FieldMatchResult, FeishuTable, FeishuField } from '@/types';
@@ -154,6 +155,7 @@ export default function FileUploadPage() {
   const pasteAreaRef = useRef<HTMLTextAreaElement>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const sheetMappingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const { addToast } = useToast();
 
   // 组件卸载时清理所有timeout
   useEffect(() => {
@@ -1598,8 +1600,8 @@ export default function FileUploadPage() {
 
   return (
     <SidebarProvider>
-      <div className="h-screen flex overflow-hidden bg-gray-50 dark:bg-gray-950">
-        {/* 三栏布局 */}
+      <div className="h-screen w-screen flex overflow-hidden bg-gray-50 dark:bg-gray-950">
+        {/* 三栏布局 - 适配浏览器窗口 */}
         <ThreeColumnLayout
           leftMinWidth={200}
           middleMinWidth={300}
@@ -1860,19 +1862,18 @@ export default function FileUploadPage() {
               <div className="flex items-center justify-between h-16">
                 {/* 左侧：步骤指示器 - 飞书风格 */}
                 <div className="flex items-center gap-6">
-                  {[1, 2, 3, 4].map((step) => (
+                  {[1, 2].map((step) => (
                     <button
                       key={step}
                       onClick={() => {
-                        if (step <= currentStep || (step === 2 && parsedConfig) || (step === 3 && selectedTableIds.length > 0) || (step === 4 && (selectedFile || pastedContent))) {
+                        if (step <= currentStep || (step === 2 && parsedConfig)) {
                           setCurrentStep(step as Step);
                           window.scrollTo({ top: 0, behavior: 'smooth' });
                         }
                       }}
                       disabled={
                         (step > 1 && !parsedConfig) ||
-                        (step > 2 && selectedTableIds.length === 0) ||
-                        (step > 3 && !selectedFile && !pastedContent)
+                        (step > 2 && selectedTableIds.length === 0)
                       }
                       className={`flex items-center gap-2 transition-all duration-200 ${
                         step === currentStep
@@ -1900,11 +1901,55 @@ export default function FileUploadPage() {
                       }`}>
                         {step === 1 && '输入链接'}
                         {step === 2 && '选择工作表'}
-                        {step === 3 && '字段匹配'}
-                        {step === 4 && '执行上传'}
                       </span>
                     </button>
                   ))}
+                  {/* 步骤 3：字段匹配（右栏显示） */}
+                  <button
+                    onClick={() => {
+                      if (selectedTableIds.length > 0) {
+                        setCurrentStep(3);
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      } else {
+                        addToast({
+                          type: 'warning',
+                          message: '请先选择目标工作表',
+                          duration: 3000,
+                        });
+                      }
+                    }}
+                    disabled={selectedTableIds.length === 0}
+                    className={`flex items-center gap-2 transition-all duration-200 ${
+                      currentStep === 3
+                        ? 'text-primary'
+                        : currentStep > 3
+                        ? 'text-green-600 dark:text-green-400'
+                        : selectedTableIds.length === 0
+                        ? 'text-gray-400 dark:text-gray-600 cursor-not-allowed'
+                        : 'text-gray-400 dark:text-gray-600 hover:text-primary cursor-pointer'
+                    }`}
+                  >
+                    <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium transition-all duration-200 ${
+                      currentStep === 3
+                        ? 'bg-primary text-white shadow-lg shadow-primary/25'
+                        : currentStep > 3
+                        ? 'bg-green-500 text-white'
+                        : selectedTableIds.length === 0
+                        ? 'bg-gray-100 dark:bg-gray-800 text-gray-500'
+                        : 'bg-gray-100 dark:bg-gray-800 text-gray-500'
+                    }`}>
+                      {currentStep > 3 ? (
+                        <Check className="h-4 w-4" />
+                      ) : (
+                        '3'
+                      )}
+                    </div>
+                    <span className={`text-sm font-medium hidden sm:block ${
+                      currentStep === 3 ? 'text-primary' : ''
+                    }`}>
+                      字段匹配
+                    </span>
+                  </button>
                 </div>
 
                 {/* 右侧：操作按钮 */}
@@ -1918,35 +1963,69 @@ export default function FileUploadPage() {
                     <ArrowLeft className="h-4 w-4 mr-2" />
                     上一步
                   </Button>
-                  <Button
-                    onClick={nextStep}
-                    disabled={
-                      currentStep === 4 ||
-                      (currentStep === 1 && !parsedConfig) ||
-                      (currentStep === 2 && selectedTableIds.length === 0) ||
-                      (currentStep === 3 && (
-                        (inputMode === 'file' && !selectedFile) ||
-                        (inputMode === 'paste' && !pastedContent.trim())
-                      ))
-                    }
-                    className="h-10 px-6 font-medium bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary shadow-lg shadow-primary/20 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
-                  >
-                    {currentStep === 4 ? '完成' : '下一步'}
-                    <ArrowRight className="h-4 w-4 ml-2" />
-                  </Button>
+                  {/* 下一步按钮：只在第 1 步显示 */}
+                  {currentStep === 1 && (
+                    <Button
+                      onClick={nextStep}
+                      disabled={currentStep === 1 && !parsedConfig}
+                      className="h-10 px-6 font-medium bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary shadow-lg shadow-primary/20 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+                    >
+                      下一步
+                      <ArrowRight className="h-4 w-4 ml-2" />
+                    </Button>
+                  )}
+                  {/* 同步按钮：第 2 步开始显示，根据条件判断启用/禁用 */}
+                  {currentStep >= 2 && (
+                    <Button
+                      onClick={() => {
+                        // 检查是否满足同步条件
+                        if (selectedTableIds.length === 0) {
+                          addToast({
+                            type: 'warning',
+                            message: '请先选择目标工作表',
+                            duration: 3000,
+                          });
+                          return;
+                        }
+                        if ((inputMode === 'file' && !selectedFile) || (inputMode === 'paste' && !pastedContent.trim())) {
+                          addToast({
+                            type: 'warning',
+                            message: '请选择上传文件或粘贴内容',
+                            duration: 3000,
+                          });
+                          return;
+                        }
+                        handleUpload();
+                      }}
+                      disabled={uploading}
+                      variant="outline"
+                      className={`h-10 px-5 font-medium transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] border-green-300 dark:border-green-700 text-green-700 dark:text-green-300 hover:bg-green-50 dark:hover:bg-green-950 hover:border-green-400 ${
+                        selectedTableIds.length === 0 || ((inputMode === 'file' && !selectedFile) || (inputMode === 'paste' && !pastedContent.trim()))
+                          ? 'opacity-50 cursor-not-allowed'
+                          : ''
+                      }`}
+                    >
+                      {uploading ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <CloudUpload className="h-4 w-4 mr-2" />
+                      )}
+                      {uploading ? '同步中...' : '同步'}
+                    </Button>
+                  )}
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="h-full flex flex-col px-6 sm:px-8 lg:px-10 py-6 sm:py-8 pb-24">
-            {/* 内容容器 - 飞书风格宽度 */}
-            <div className="max-w-6xl mx-auto w-full flex-1 flex flex-col">
+          <div className="h-full flex flex-col px-4 sm:px-6 lg:px-8 py-4 sm:py-6 pb-24">
+            {/* 内容容器 - 自适应宽度 */}
+            <div className="w-full flex-1 flex flex-col min-w-0">
               {/* 顶部操作栏 - 飞书风格 */}
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8 pb-6 border-b border-gray-100 dark:border-gray-800">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 pb-4 border-b border-gray-100 dark:border-gray-800">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-4 mb-2">
-                    <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-50 truncate tracking-tight">
+                    <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-50 truncate tracking-tight">
                       {currentStep === 1 && '配置飞书表格链接'}
                       {currentStep === 2 && '选择目标工作表'}
                       {currentStep === 3 && '数据同步流程'}

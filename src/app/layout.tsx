@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Analytics } from "@vercel/analytics/next";
 import { Inspector } from 'react-dev-inspector';
+import { ToastProvider } from '@/components/ui/toast';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -62,9 +63,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`antialiased`}>
-        <Analytics />
-        {isDev && <Inspector />}
-        {children}
+        <ToastProvider>
+          <Analytics />
+          {isDev && <Inspector />}
+          {children}
+        </ToastProvider>
       </body>
     </html>
   );

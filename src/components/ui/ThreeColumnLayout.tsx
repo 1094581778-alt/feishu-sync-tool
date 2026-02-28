@@ -21,10 +21,66 @@ export function ThreeColumnLayout({
   rightMinWidth = 300,
   storageKey = 'three-column-layout',
 }: ThreeColumnLayoutProps) {
-  const [leftWidth, setLeftWidth] = useState(20);
-  const [middleWidth, setMiddleWidth] = useState(40);
+  // 根据屏幕尺寸动态设置初始比例
+  const getInitialLayout = () => {
+    if (typeof window === 'undefined') return { left: 20, middle: 40 };
+    
+    const screenWidth = window.innerWidth;
+    
+    // 小屏幕（< 1366px）：更紧凑的布局
+    if (screenWidth < 1366) {
+      return { left: 18, middle: 38 };
+    }
+    // 中等屏幕（1366px - 1600px）：标准布局
+    if (screenWidth < 1600) {
+      return { left: 20, middle: 40 };
+    }
+    // 大屏幕（> 1600px）：更宽松的布局
+    return { left: 20, middle: 40 };
+  };
+
+  const [leftWidth, setLeftWidth] = useState(getInitialLayout().left);
+  const [middleWidth, setMiddleWidth] = useState(getInitialLayout().middle);
   const [dragging, setDragging] = useState<'left' | 'middle' | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // 监听窗口大小变化，动态调整最小宽度百分比
+  const [minWidthPercents, setMinWidthPercents] = useState({
+    left: 15,
+    middle: 20,
+    right: 20,
+  });
+
+  useEffect(() => {
+    const handleResize = () => {
+      // 窗口大小改变时，重新计算最小宽度百分比
+      if (containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        const totalWidth = rect.width;
+        
+        setMinWidthPercents({
+          left: Math.min(25, (leftMinWidth / totalWidth) * 100),
+          middle: Math.min(30, (middleMinWidth / totalWidth) * 100),
+          right: Math.min(30, (rightMinWidth / totalWidth) * 100),
+        });
+      }
+    };
+
+    handleResize();
+    
+    // 使用 debounce 避免频繁触发
+    let resizeTimeout: NodeJS.Timeout;
+    const debouncedResize = () => {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(handleResize, 100);
+    };
+
+    window.addEventListener('resize', debouncedResize);
+    return () => {
+      window.removeEventListener('resize', debouncedResize);
+      clearTimeout(resizeTimeout);
+    };
+  }, [leftMinWidth, middleMinWidth, rightMinWidth]);
 
   useEffect(() => {
     if (storageKey) {
@@ -65,22 +121,18 @@ export function ThreeColumnLayout({
     const totalWidth = rect.width;
     const x = e.clientX - rect.left;
 
-    const leftMinPercent = (leftMinWidth / totalWidth) * 100;
-    const middleMinPercent = (middleMinWidth / totalWidth) * 100;
-    const rightMinPercent = (rightMinWidth / totalWidth) * 100;
-
     if (dragging === 'left') {
       const newLeftWidth = (x / totalWidth) * 100;
-      const constrainedLeft = Math.max(leftMinPercent, Math.min(100 - middleMinPercent - rightMinPercent, newLeftWidth));
+      const constrainedLeft = Math.max(minWidthPercents.left, Math.min(100 - minWidthPercents.middle - minWidthPercents.right, newLeftWidth));
       
       setLeftWidth(constrainedLeft);
     } else if (dragging === 'middle') {
       const newMiddleWidth = (x / totalWidth) * 100 - leftWidth;
-      const constrainedMiddle = Math.max(middleMinPercent, Math.min(100 - leftWidth - rightMinPercent, newMiddleWidth));
+      const constrainedMiddle = Math.max(minWidthPercents.middle, Math.min(100 - leftWidth - minWidthPercents.right, newMiddleWidth));
       
       setMiddleWidth(constrainedMiddle);
     }
-  }, [dragging, leftMinWidth, middleMinWidth, rightMinWidth, leftWidth]);
+  }, [dragging, minWidthPercents, leftWidth]);
 
   const handleMouseUp = useCallback(() => {
     if (dragging) {
