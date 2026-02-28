@@ -31,7 +31,7 @@ import {
   Zap,
   Calendar,
 } from "lucide-react";
-import { format } from "date-fns";
+import { format } from "date-fns/format";
 
 interface ScheduledTaskManagerProps {
   onEditTask: (task: ScheduledTaskConfig) => void;

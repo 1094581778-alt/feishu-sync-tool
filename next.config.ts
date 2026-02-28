@@ -3,6 +3,7 @@ import path from 'path';
 
 const nextConfig: NextConfig = {
   allowedDevOrigins: ['*.dev.coze.site'],
+  output: 'standalone',
   images: {
     unoptimized: true,
     remotePatterns: [
@@ -13,7 +14,6 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  output: 'standalone',
   basePath: '',
 };
 

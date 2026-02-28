@@ -3,7 +3,7 @@
  * 负责调度和执行定时任务
  */
 
-import CronExpressionParser from 'cron-parser';
+import parseExpression from 'cron-parser';
 import type { ScheduledTaskConfig, ScheduledTaskExecutionLog, TaskStatus, FileInfo } from '@/types/scheduled-task';
 import { FileScanner } from './file-scanner-index';
 import { isTauri } from './tauri';
@@ -48,7 +48,7 @@ class ScheduledTaskEngine {
   calculateNextRun(task: ScheduledTaskConfig): Date | null {
     try {
       if (task.triggerMode === 'cron' && task.cronExpression) {
-        const interval = CronExpressionParser.parse(task.cronExpression, {
+        const interval = new (parseExpression as any)(task.cronExpression, {
           currentDate: new Date(),
         });
         return interval.next().toDate();
@@ -100,7 +100,7 @@ class ScheduledTaskEngine {
    */
   validateCronExpression(cronExpression: string): { valid: boolean; error?: string } {
     try {
-      CronExpressionParser.parse(cronExpression);
+      new (parseExpression as any)(cronExpression);
       return { valid: true };
     } catch (error) {
       return {
@@ -325,7 +325,7 @@ class ScheduledTaskEngine {
       }
 
       // 发送到正确的端口
-      const response = await fetch('http://localhost:5000/api/upload', {
+      const response = await fetch('/api/upload', {
         method: 'POST',
         body: formData,
       });

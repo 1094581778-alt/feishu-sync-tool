@@ -2,11 +2,19 @@ import { fetch as tauriFetch } from '@tauri-apps/plugin-http';
 
 const isTauri = typeof window !== 'undefined' && (window as any).__TAURI__ !== undefined;
 
+const API_BASE_URL = 'http://8.140.193.108:5000';
+
 export async function httpFetch(url: string, options: RequestInit = {}): Promise<Response> {
   if (!isTauri) {
     return fetch(url, options);
   }
 
+  let fullUrl = url;
+  
+  if (url.startsWith('/api/') || url.startsWith('/_next/')) {
+    fullUrl = `${API_BASE_URL}${url}`;
+  }
+  
   const method = options.method || 'GET';
   const headers: Record<string, string> = {};
   
@@ -17,18 +25,22 @@ export async function httpFetch(url: string, options: RequestInit = {}): Promise
     }
   }
   
-  if (options.body && typeof options.body === 'object') {
+  if (options.body && typeof options.body === 'object' && !(options.body instanceof FormData)) {
     headers['Content-Type'] = 'application/json';
   }
 
   try {
-    const response = await tauriFetch(url, {
+    console.log('[Tauri HTTP] Fetching:', fullUrl);
+    
+    const response = await tauriFetch(fullUrl, {
       method,
       headers,
       body: options.body as string | undefined,
     });
 
     const text = await response.text();
+    
+    console.log('[Tauri HTTP] Response status:', response.status);
     
     return new Response(text, {
       status: response.status,
@@ -61,11 +73,12 @@ export function setupTauriFetch() {
       }
       
       if (url.startsWith('/api/') || url.startsWith('/_next/')) {
-        console.warn('[Tauri] Skipping local path:', url);
-        return originalFetch!(input, init);
+        console.log('[Tauri] Using Tauri HTTP for:', url);
+        return httpFetch(url, init || {});
       }
       
-      return httpFetch(url, init || {});
+      console.log('[Tauri] Using original fetch for:', url);
+      return originalFetch!(input, init);
     };
     console.log('[Tauri] Fetch interceptor installed');
   }

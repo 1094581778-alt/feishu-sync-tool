@@ -23,8 +23,6 @@ export function ThreeColumnLayout({
 }: ThreeColumnLayoutProps) {
   // 根据屏幕尺寸动态设置初始比例
   const getInitialLayout = () => {
-    if (typeof window === 'undefined') return { left: 20, middle: 40 };
-    
     const screenWidth = window.innerWidth;
     
     // 小屏幕（< 1366px）：更紧凑的布局
@@ -39,8 +37,15 @@ export function ThreeColumnLayout({
     return { left: 20, middle: 40 };
   };
 
-  const [leftWidth, setLeftWidth] = useState(getInitialLayout().left);
-  const [middleWidth, setMiddleWidth] = useState(getInitialLayout().middle);
+  const [leftWidth, setLeftWidth] = useState(20);
+  const [middleWidth, setMiddleWidth] = useState(40);
+
+  // 组件挂载后根据实际屏幕尺寸设置布局
+  useEffect(() => {
+    const layout = getInitialLayout();
+    setLeftWidth(layout.left);
+    setMiddleWidth(layout.middle);
+  }, []);
   const [dragging, setDragging] = useState<'left' | 'middle' | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -91,11 +96,16 @@ export function ThreeColumnLayout({
           if (parsed.left && parsed.middle) {
             setLeftWidth(parsed.left);
             setMiddleWidth(parsed.middle);
+            return;
           }
         } catch (e) {
           console.error('Failed to parse saved layout:', e);
         }
       }
+      // 如果没有保存的布局，使用基于屏幕尺寸的默认布局
+      const layout = getInitialLayout();
+      setLeftWidth(layout.left);
+      setMiddleWidth(layout.middle);
     }
   }, [storageKey]);
 

@@ -5,6 +5,7 @@ import { validateFileSize, validateFileType } from '@/config/app';
 import { createErrorResponse, getErrorStatusCode } from '@/utils/errorHandler';
 import { checkRateLimit, createRateLimitHeaders, rateLimitConfigs } from '@/utils/rateLimit';
 import { FeishuTokenCache, CACHE_TTL } from '@/utils/cache';
+import { calculateSimilarity, findBestMatch } from '@/utils/fieldMatching';
 
 // 初始化对象存储
 const storage = new S3Storage({
@@ -322,41 +323,6 @@ async function getFeishuTables(accessToken: string, appToken: string): Promise<s
 }
 
 /**
- * 计算两个字符串的相似度（使用编辑距离算法）
- */
-function calculateSimilarity(str1: string, str2: string): number {
-  const s1 = str1.toLowerCase();
-  const s2 = str2.toLowerCase();
-  
-  // 如果完全相同，相似度为 1
-  if (s1 === s2) return 1;
-  
-  // 如果一个字符串包含另一个字符串，相似度为 0.8
-  if (s1.includes(s2) || s2.includes(s1)) return 0.8;
-  
-  // 计算编辑距离
-  const m = s1.length;
-  const n = s2.length;
-  const dp: number[][] = Array(m + 1).fill(null).map(() => Array(n + 1).fill(0));
-  
-  for (let i = 0; i <= m; i++) dp[i][0] = i;
-  for (let j = 0; j <= n; j++) dp[0][j] = j;
-  
-  for (let i = 1; i <= m; i++) {
-    for (let j = 1; j <= n; j++) {
-      if (s1[i - 1] === s2[j - 1]) {
-        dp[i][j] = dp[i - 1][j - 1];
-      } else {
-        dp[i][j] = Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]) + 1;
-      }
-    }
-  }
-  
-  const maxLen = Math.max(m, n);
-  return 1 - dp[m][n] / maxLen;
-}
-
-/**
  * 智能字段映射：根据字段名称自动匹配
  */
 function smartFieldMapping(fieldNames: string[]): Record<string, string> {
@@ -444,33 +410,6 @@ function smartFieldMapping(fieldNames: string[]): Record<string, string> {
   console.log('🤖 [智能映射] 映射结果:', result);
   
   return result;
-}
-
-/**
- * 智能匹配 Excel 列名到飞书字段名
- */
-function findBestMatch(excelColumn: string, feishuFields: string[]): { field: string; similarity: number } | null {
-  let bestMatch: { field: string; similarity: number } | null = null;
-  
-  // 1. 首先尝试精确匹配
-  const exactMatch = feishuFields.find(field => field === excelColumn);
-  if (exactMatch) {
-    return { field: exactMatch, similarity: 1 };
-  }
-  
-  // 2. 计算相似度，找到最佳匹配
-  for (const feishuField of feishuFields) {
-    const similarity = calculateSimilarity(excelColumn, feishuField);
-    
-    // 如果相似度大于 0.6，认为是潜在匹配
-    if (similarity > 0.6) {
-      if (!bestMatch || similarity > bestMatch.similarity) {
-        bestMatch = { field: feishuField, similarity };
-      }
-    }
-  }
-  
-  return bestMatch;
 }
 
 /**

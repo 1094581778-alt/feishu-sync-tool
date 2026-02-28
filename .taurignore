@@ -1,0 +1,8 @@
+node_modules/**
+src-tauri/**
+__tests__/**
+*.md
+*.txt
+scripts/**
+test-output/**
+.github/**

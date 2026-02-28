@@ -6,7 +6,7 @@ import { Separator } from '@/components/ui/separator';
 import { Calendar, Clock, Folder, File as FileIcon, Filter, Loader2, X, Check, AlertCircle } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { format } from 'date-fns';
+import { format } from 'date-fns/format';
 import { 
   fileSystemService, 
   environment, 

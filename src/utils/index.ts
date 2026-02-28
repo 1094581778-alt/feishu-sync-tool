@@ -4,4 +4,4 @@
 
 export { parseFeishuUrl } from './feishu';
 export { formatFileSize } from './file';
-export { analyzeFieldMatching, analyzeFieldMatchingForAllTables } from './fieldMatching';
+export { analyzeFieldMatching, analyzeFieldMatchingForAllTables, calculateSimilarity, findBestMatch } from './fieldMatching';

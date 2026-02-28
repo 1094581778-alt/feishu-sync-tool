@@ -4,6 +4,76 @@
 import type { FeishuField, FieldMatchResult } from '@/types';
 
 /**
+ * 计算两个字符串的相似度（使用编辑距离算法）
+ * 
+ * @param str1 - 第一个字符串
+ * @param str2 - 第二个字符串
+ * @returns 相似度（0-1 之间）
+ */
+export function calculateSimilarity(str1: string, str2: string): number {
+  const s1 = str1.toLowerCase();
+  const s2 = str2.toLowerCase();
+  
+  // 如果完全相同，相似度为 1
+  if (s1 === s2) return 1;
+  
+  // 如果一个字符串包含另一个字符串，相似度为 0.8
+  if (s1.includes(s2) || s2.includes(s1)) return 0.8;
+  
+  // 计算编辑距离
+  const m = s1.length;
+  const n = s2.length;
+  const dp: number[][] = Array(m + 1).fill(null).map(() => Array(n + 1).fill(0));
+  
+  for (let i = 0; i <= m; i++) dp[i][0] = i;
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      if (s1[i - 1] === s2[j - 1]) {
+        dp[i][j] = dp[i - 1][j - 1];
+      } else {
+        dp[i][j] = Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]) + 1;
+      }
+    }
+  }
+  
+  const maxLen = Math.max(m, n);
+  return 1 - dp[m][n] / maxLen;
+}
+
+/**
+ * 查找最佳匹配字段
+ * 
+ * @param excelField - Excel 字段名
+ * @param feishuFields - 飞书字段列表
+ * @returns 最佳匹配结果（包含字段名和相似度）
+ */
+export function findBestMatch(excelField: string, feishuFields: string[]): { field: string; similarity: number } | null {
+  let bestMatch: { field: string; similarity: number } | null = null;
+  
+  // 1. 首先尝试精确匹配
+  const exactMatch = feishuFields.find(field => field === excelField);
+  if (exactMatch) {
+    return { field: exactMatch, similarity: 1 };
+  }
+  
+  // 2. 计算相似度，找到最佳匹配
+  for (const feishuField of feishuFields) {
+    const similarity = calculateSimilarity(excelField, feishuField);
+    
+    // 如果相似度大于 0.6，认为是潜在匹配
+    if (similarity > 0.6) {
+      if (!bestMatch || similarity > bestMatch.similarity) {
+        bestMatch = { field: feishuField, similarity };
+      }
+    }
+  }
+  
+  return bestMatch;
+}
+
+/**
  * 分析字段匹配
  */
 export async function analyzeFieldMatching(
