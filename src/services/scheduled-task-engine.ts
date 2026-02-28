@@ -3,7 +3,7 @@
  * 负责调度和执行定时任务
  */
 
-import { parseExpression, type ParsedExpression } from 'cron-parser';
+import parseExpression, { type ParsedExpression } from 'cron-parser';
 import type { ScheduledTaskConfig, ScheduledTaskExecutionLog, TaskStatus, FileInfo } from '@/types/scheduled-task';
 import { FileScanner } from './file-scanner-index';
 import { isTauri } from './tauri';
