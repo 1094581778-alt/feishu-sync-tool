@@ -13,6 +13,7 @@ build
 .env.local
 .env.production
 .env.*.local
+.coze
 
 # 日志
 npm-debug.log*

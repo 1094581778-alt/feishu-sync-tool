@@ -303,7 +303,14 @@ export function Step2Enhanced({
       )}
 
       {/* 工作表选择区域 */}
-      <Card className="p-6 border-gray-200 dark:border-gray-800 shadow-sm">
+      <ResizableCard
+        defaultWidth={600}
+        defaultHeight={500}
+        minWidth={400}
+        minHeight={300}
+        storageKey="step2-workspace-selection-size"
+        className="p-6 border-gray-200 dark:border-gray-800 shadow-sm"
+      >
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-primary/10">
@@ -465,7 +472,7 @@ export function Step2Enhanced({
                 )}
               </div>
             </div>
-          </Card>
+          </ResizableCard>
 
       {/* 底部操作栏 */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 border-t border-gray-200 dark:border-gray-800">

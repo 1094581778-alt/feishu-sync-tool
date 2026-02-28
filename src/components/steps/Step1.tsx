@@ -272,7 +272,9 @@ export function Step1({
                 查看完整响应数据
               </summary>
               <pre className="mt-2.5 p-3 bg-gray-50 dark:bg-gray-800 rounded-xl overflow-auto max-h-44 text-xs">
-                {JSON.stringify(debugInfo.responseData, null, 2)}
+                {typeof debugInfo.responseData === 'string' 
+                  ? debugInfo.responseData 
+                  : JSON.stringify(debugInfo.responseData, null, 2)}
               </pre>
             </details>
           )}
@@ -565,9 +567,11 @@ export function Step1({
               </div>
               <div className="flex-1 min-w-0 pt-0.5">
                 <p className="text-sm font-semibold text-red-900 dark:text-red-100 leading-relaxed">操作遇到问题</p>
-                <p className="text-sm text-red-700 dark:text-red-300 mt-1.5 leading-relaxed">{error}</p>
+                <p className="text-sm text-red-700 dark:text-red-300 mt-1.5 leading-relaxed">
+                  {typeof error === 'string' ? error : (error?.message || JSON.stringify(error) || '发生未知错误')}
+                </p>
                 
-                {error.includes('链接') || error.includes('URL') ? (
+                {error && typeof error === 'string' && (error.includes('链接') || error.includes('URL')) ? (
                   <div className="mt-4 space-y-2.5">
                     <p className="text-xs text-red-700 dark:text-red-300 font-semibold">修复建议：</p>
                     <ul className="text-xs text-red-600 dark:text-red-400 space-y-1.5 list-disc pl-4">
@@ -584,7 +588,7 @@ export function Step1({
                       清除错误并重试
                     </Button>
                   </div>
-                ) : error.includes('API') || error.includes('配置') ? (
+                ) : error && typeof error === 'string' && (error.includes('API') || error.includes('配置')) ? (
                   <div className="mt-4 space-y-2.5">
                     <p className="text-xs text-red-700 dark:text-red-300 font-semibold">修复建议：</p>
                     <ul className="text-xs text-red-600 dark:text-red-400 space-y-1.5 list-disc pl-4">
@@ -601,7 +605,7 @@ export function Step1({
                       检查飞书配置
                     </Button>
                   </div>
-                ) : error.includes('工作表') || error.includes('表') ? (
+                ) : error && typeof error === 'string' && (error.includes('工作表') || error.includes('表')) ? (
                   <div className="mt-4 space-y-2.5">
                     <p className="text-xs text-red-700 dark:text-red-300 font-semibold">修复建议：</p>
                     <ul className="text-xs text-red-600 dark:text-red-400 space-y-1.5 list-disc pl-4">

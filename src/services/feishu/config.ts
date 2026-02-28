@@ -83,19 +83,11 @@ export function validateAppConfig(config: Partial<AppConfig>): AppConfig {
 
 /**
  * 从环境变量获取配置
+ * 注意：已禁用环境变量配置，用户必须在界面中配置飞书凭证
+ * @deprecated 不再支持环境变量配置，保留函数仅为兼容性
  */
 export function getConfigFromEnv(): Partial<AppConfig> {
-  const config: Partial<AppConfig> = {};
-  
-  if (typeof process !== 'undefined' && process.env) {
-    const appId = process.env[FeishuConfigKeys.APP_ID];
-    const appSecret = process.env[FeishuConfigKeys.APP_SECRET];
-    
-    if (appId) config.appId = appId;
-    if (appSecret) config.appSecret = appSecret;
-  }
-  
-  return config;
+  return {};
 }
 
 /**

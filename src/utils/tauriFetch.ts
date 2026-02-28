@@ -2,8 +2,6 @@ import { fetch as tauriFetch } from '@tauri-apps/plugin-http';
 
 const isTauri = typeof window !== 'undefined' && (window as any).__TAURI__ !== undefined;
 
-const API_BASE_URL = 'http://localhost:5000';
-
 export async function httpFetch(url: string, options: RequestInit = {}): Promise<Response> {
   if (!isTauri) {
     return fetch(url, options);
@@ -62,20 +60,14 @@ export function setupTauriFetch() {
         url = (input as Request).url;
       }
       
-      if (url.startsWith('/api/')) {
-        const fullUrl = API_BASE_URL + url;
-        console.log('[Tauri] Proxying API request to:', fullUrl);
-        return httpFetch(fullUrl, init || {});
-      }
-      
-      if (url.startsWith('/_next/')) {
+      if (url.startsWith('/api/') || url.startsWith('/_next/')) {
         console.warn('[Tauri] Skipping local path:', url);
         return originalFetch!(input, init);
       }
       
       return httpFetch(url, init || {});
     };
-    console.log('[Tauri] Fetch interceptor installed, API will proxy to:', API_BASE_URL);
+    console.log('[Tauri] Fetch interceptor installed');
   }
 }
 

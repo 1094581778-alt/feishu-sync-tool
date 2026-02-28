@@ -1,6 +1,5 @@
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { ResizableCard } from '@/components/ui/ResizableCard';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -82,20 +81,13 @@ export function Step3({
     : [];
 
   return (
-    <ResizableCard
-      defaultWidth={780}
-      defaultHeight={850}
-      minWidth={400}
-      minHeight={300}
-      storageKey="step3-card-size"
-      className="p-8 sm:p-10"
-    >
-      <div className="space-y-6">
+    <div className="w-full h-full flex flex-col">
+      <div className="flex-1 overflow-auto space-y-6 p-2">
         <div>
-          <h2 className="text-2xl sm:text-3xl font-bold text-foreground mb-3">
-            步骤 3/4：选择输入方式
+          <h2 className="text-lg font-bold text-foreground mb-2">
+            选择输入方式
           </h2>
-          <p className="text-base text-muted-foreground">
+          <p className="text-sm text-muted-foreground">
             请选择您想要上传的内容方式：上传文件或粘贴内容
           </p>
         </div>
@@ -609,6 +601,6 @@ export function Step3({
           </div>
         )}
       </div>
-    </ResizableCard>
+    </div>
   );
 }

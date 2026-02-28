@@ -31,6 +31,8 @@ import {
 import { Upload, Download, FileText, CheckCircle, AlertCircle, X, Settings, Save, Table, ChevronRight, Loader2, CheckCircle2, XCircle, ArrowLeft, ArrowRight, Trash2, Copy, FileSpreadsheet, History, Sun, Moon, Monitor, Zap, Coffee, Check, Code, Home, FileUp, Database, CloudUpload, Rocket, Clock, Users, BarChart } from 'lucide-react';
 import { FeishuConfig, SaveTemplateDialog, TemplateList } from '@/components';
 import { Step2Enhanced } from '@/components/steps/Step2Enhanced';
+import { SplitPane } from '@/components/ui/SplitPane';
+import { ThreeColumnLayout } from '@/components/ui/ThreeColumnLayout';
 import { parseFeishuUrl, formatFileSize } from '@/utils';
 import { STORAGE_KEYS } from '@/constants';
 import { useFeishuConfig, useUrlHistory, useHistoryTemplates, useTheme } from '@/hooks';
@@ -481,13 +483,13 @@ export default function FileUploadPage() {
           setDebugInfo((prev: Record<string, any>) => ({ ...prev, status: 'success', tablesCount: data.tables.length }));
         } else {
           console.error('❌ [请求 ' + requestId + '] API 返回错误或无数据:', data);
-          const errorMsg = data.error || '获取工作表列表失败';
+          const errorMsg = typeof data === 'string' ? data : (data?.message || data?.error || JSON.stringify(data) || '获取工作表列表失败');
           setError(errorMsg);
           setDebugInfo((prev: Record<string, any>) => ({ ...prev, status: 'error', error: errorMsg, details: data }));
         }
       } catch (err) {
         console.error('❌ [请求 ' + requestId + '] 请求失败:', err);
-        const errorMsg = err instanceof Error ? err.message : '获取工作表列表失败';
+        const errorMsg = err instanceof Error ? err.message : (typeof err === 'string' ? err : JSON.stringify(err) || '获取工作表列表失败');
         setError(errorMsg);
         setDebugInfo((prev: Record<string, any>) => ({ ...prev, status: 'error', error: errorMsg, exception: err }));
       } finally {
@@ -1596,11 +1598,19 @@ export default function FileUploadPage() {
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex bg-gray-50 dark:bg-gray-950">
-        {/* 侧边栏导航 */}
-        <Sidebar 
-          className="border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900"
-        >
+      <div className="h-screen flex overflow-hidden bg-gray-50 dark:bg-gray-950">
+        {/* 三栏布局 */}
+        <ThreeColumnLayout
+          leftMinWidth={200}
+          middleMinWidth={300}
+          rightMinWidth={300}
+          storageKey="feishu-three-column-layout"
+          left={
+            /* 左栏：侧边栏导航 */
+            <Sidebar 
+              collapsible="none"
+              className="border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 h-full w-full"
+            >
           <SidebarContent className="py-5">
             {/* 顶部Logo和品牌区域 - 飞书风格 */}
             <SidebarGroup className="px-4 pb-5 mb-4 border-b border-gray-100 dark:border-gray-800">
@@ -1615,181 +1625,71 @@ export default function FileUploadPage() {
               </div>
             </SidebarGroup>
 
-            {/* 主导航菜单 - 飞书风格 */}
+            {/* 功能入口菜单 */}
             <SidebarGroup className="mb-6">
               <SidebarGroupLabel className="px-4 text-xs font-medium text-gray-500 dark:text-gray-400 mb-3">
-                流程步骤
+                功能模块
               </SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu className="space-y-1">
-                  {/* 步骤1：输入链接 */}
+                  {/* 数据同步功能 */}
                   <SidebarMenuItem>
                     <SidebarMenuButton
-                      isActive={currentStep === 1}
+                      isActive={currentStep >= 1 && currentStep <= 4}
                       onClick={() => {
                         setCurrentStep(1);
                         window.scrollTo({ top: 0, behavior: 'smooth' });
                       }}
                       className="gap-3 px-4 py-2.5 h-auto hover:bg-gray-50 dark:hover:bg-gray-800/50"
                     >
-                      <div className={`flex items-center justify-center w-6 h-6 rounded-full text-xs font-semibold flex-shrink-0 transition-all duration-200 ${
-                        currentStep === 1 
-                          ? 'bg-blue-500 text-white shadow-sm' 
-                          : currentStep > 1 
-                          ? 'bg-green-500 text-white' 
-                          : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'
-                      }`}>
-                        {currentStep > 1 ? (
-                          <Check className="h-3.5 w-3.5" />
-                        ) : (
-                          '1'
-                        )}
+                      <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-blue-500 text-white flex-shrink-0">
+                        <CloudUpload className="h-4 w-4" />
                       </div>
                       <div className="flex-1 text-left min-w-0">
-                        <div className={`text-sm font-medium truncate ${
-                          currentStep === 1 
-                            ? 'text-blue-600 dark:text-blue-400' 
-                            : currentStep > 1 
-                            ? 'text-green-600 dark:text-green-400' 
-                            : 'text-gray-700 dark:text-gray-300'
-                        }`}>
-                          配置链接
-                        </div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">
-                          输入飞书表格链接
-                        </div>
-                      </div>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-
-                  {/* 步骤2：选择工作表 */}
-                  <SidebarMenuItem>
-                    <SidebarMenuButton
-                      isActive={currentStep === 2}
-                      onClick={() => {
-                        if (parsedConfig && currentStep >= 2) {
-                          setCurrentStep(2);
-                          window.scrollTo({ top: 0, behavior: 'smooth' });
-                        }
-                      }}
-                      disabled={!parsedConfig}
-                      className="gap-3 px-4 py-2.5 h-auto hover:bg-gray-50 dark:hover:bg-gray-800/50"
-                    >
-                      <div className={`flex items-center justify-center w-6 h-6 rounded-full text-xs font-semibold flex-shrink-0 transition-all duration-200 ${
-                        currentStep === 2 
-                          ? 'bg-blue-500 text-white shadow-sm' 
-                          : currentStep > 2 
-                          ? 'bg-green-500 text-white' 
-                          : !parsedConfig 
-                          ? 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500' 
-                          : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'
-                      }`}>
-                        {currentStep > 2 ? (
-                          <Check className="h-3.5 w-3.5" />
-                        ) : (
-                          '2'
-                        )}
-                      </div>
-                      <div className="flex-1 text-left min-w-0">
-                        <div className={`text-sm font-medium truncate ${
-                          currentStep === 2 
-                            ? 'text-blue-600 dark:text-blue-400' 
-                            : currentStep > 2 
-                            ? 'text-green-600 dark:text-green-400' 
-                            : !parsedConfig 
-                            ? 'text-gray-400 dark:text-gray-500' 
-                            : 'text-gray-700 dark:text-gray-300'
-                        }`}>
-                          选择工作表
-                        </div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">
-                          选择目标工作表
-                        </div>
-                      </div>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-
-                  {/* 步骤3：选择输入方式 */}
-                  <SidebarMenuItem>
-                    <SidebarMenuButton
-                      isActive={currentStep === 3}
-                      onClick={() => {
-                        if (selectedTableIds.length > 0 && currentStep >= 3) {
-                          setCurrentStep(3);
-                          window.scrollTo({ top: 0, behavior: 'smooth' });
-                        }
-                      }}
-                      disabled={selectedTableIds.length === 0}
-                      className="gap-3 px-4 py-2.5 h-auto hover:bg-gray-50 dark:hover:bg-gray-800/50"
-                    >
-                      <div className={`flex items-center justify-center w-6 h-6 rounded-full text-xs font-semibold flex-shrink-0 transition-all duration-200 ${
-                        currentStep === 3 
-                          ? 'bg-blue-500 text-white shadow-sm' 
-                          : currentStep > 3 
-                          ? 'bg-green-500 text-white' 
-                          : selectedTableIds.length === 0 
-                          ? 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500' 
-                          : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'
-                      }`}>
-                        {currentStep > 3 ? (
-                          <Check className="h-3.5 w-3.5" />
-                        ) : (
-                          '3'
-                        )}
-                      </div>
-                      <div className="flex-1 text-left min-w-0">
-                        <div className={`text-sm font-medium truncate ${
-                          currentStep === 3 
-                            ? 'text-blue-600 dark:text-blue-400' 
-                            : currentStep > 3 
-                            ? 'text-green-600 dark:text-green-400' 
-                            : selectedTableIds.length === 0 
-                            ? 'text-gray-400 dark:text-gray-500' 
-                            : 'text-gray-700 dark:text-gray-300'
-                        }`}>
+                        <div className="text-sm font-medium truncate text-gray-900 dark:text-white">
                           数据同步
                         </div>
                         <div className="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">
-                          上传文件或粘贴内容
+                          Excel数据导入飞书表格
                         </div>
                       </div>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
 
-                  {/* 步骤4：执行上传 */}
+                  {/* 更多功能占位 */}
                   <SidebarMenuItem>
                     <SidebarMenuButton
-                      isActive={currentStep === 4}
-                      onClick={() => {
-                        if ((selectedFile || pastedContent) && currentStep >= 4) {
-                          setCurrentStep(4);
-                          window.scrollTo({ top: 0, behavior: 'smooth' });
-                        }
-                      }}
-                      disabled={!selectedFile && !pastedContent}
-                      className="gap-3 px-4 py-2.5 h-auto hover:bg-gray-50 dark:hover:bg-gray-800/50"
+                      className="gap-3 px-4 py-2.5 h-auto hover:bg-gray-50 dark:hover:bg-gray-800/50 opacity-50 cursor-not-allowed"
+                      disabled
                     >
-                      <div className={`flex items-center justify-center w-6 h-6 rounded-full text-xs font-semibold flex-shrink-0 transition-all duration-200 ${
-                        currentStep === 4 
-                          ? 'bg-blue-500 text-white shadow-sm' 
-                          : (!selectedFile && !pastedContent) 
-                          ? 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500' 
-                          : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'
-                      }`}>
-                        '4'
+                      <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-400 flex-shrink-0">
+                        <Database className="h-4 w-4" />
                       </div>
                       <div className="flex-1 text-left min-w-0">
-                        <div className={`text-sm font-medium truncate ${
-                          currentStep === 4 
-                            ? 'text-blue-600 dark:text-blue-400' 
-                            : (!selectedFile && !pastedContent) 
-                            ? 'text-gray-400 dark:text-gray-500' 
-                            : 'text-gray-700 dark:text-gray-300'
-                        }`}>
-                          执行上传
+                        <div className="text-sm font-medium truncate text-gray-400 dark:text-gray-500">
+                          数据管理
                         </div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">
-                          确认并同步数据
+                        <div className="text-xs text-gray-400 dark:text-gray-500 truncate mt-0.5">
+                          敬请期待
+                        </div>
+                      </div>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      className="gap-3 px-4 py-2.5 h-auto hover:bg-gray-50 dark:hover:bg-gray-800/50 opacity-50 cursor-not-allowed"
+                      disabled
+                    >
+                      <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-400 flex-shrink-0">
+                        <BarChart className="h-4 w-4" />
+                      </div>
+                      <div className="flex-1 text-left min-w-0">
+                        <div className="text-sm font-medium truncate text-gray-400 dark:text-gray-500">
+                          数据分析
+                        </div>
+                        <div className="text-xs text-gray-400 dark:text-gray-500 truncate mt-0.5">
+                          敬请期待
                         </div>
                       </div>
                     </SidebarMenuButton>
@@ -1950,9 +1850,10 @@ export default function FileUploadPage() {
             />
           </SidebarContent>
         </Sidebar>
-
-        {/* 主内容区域 */}
-        <main className="flex-1 overflow-auto relative">
+          }
+          middle={
+        /* 中栏：主内容区域 */
+        <main className="h-full overflow-auto relative bg-white dark:bg-gray-900">
           {/* 固定定位导航栏 - 飞书风格 */}
           <div className="fixed bottom-0 left-0 right-0 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border-t border-gray-200 dark:border-gray-800 z-50">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -2193,6 +2094,54 @@ export default function FileUploadPage() {
             </div>{/* 关闭内容容器 */}
           </div>
         </main>
+          }
+          right={
+            /* 右栏：数据同步操作区域 */
+            <aside className="h-full overflow-hidden bg-white dark:bg-gray-900 flex flex-col border-l border-gray-200 dark:border-gray-800">
+          {/* 右栏顶部标题 */}
+          <div className="p-3 border-b border-gray-200 dark:border-gray-800 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 flex-shrink-0">
+            <div className="flex items-center gap-2">
+              <CloudUpload className="h-4 w-4 text-blue-500" />
+              <h2 className="text-sm font-semibold text-gray-900 dark:text-white">数据同步</h2>
+            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">上传文件并进行字段匹配</p>
+          </div>
+
+          {/* 右栏内容区 - 显示第三步骤内容 */}
+          <div className="flex-1 overflow-auto">
+            <Step3
+              inputMode={inputMode}
+              setInputMode={setInputMode}
+              selectedFile={selectedFile}
+              handleFileSelect={handleFileSelect}
+              handleDrop={handleDrop}
+              handleDragOver={handleDragOver}
+              fileInputRef={fileInputRef}
+              pastedContent={pastedContent}
+              setPastedContent={setPastedContent}
+              pasteAreaRef={pasteAreaRef}
+              selectedTableIds={selectedTableIds}
+              tables={tables}
+              tableFieldMatches={tableFieldMatches}
+              tableFields={tableFields}
+              tableToSheetMapping={tableToSheetMapping}
+              excelSheetNames={excelSheetNames}
+              applyingTemplate={applyingTemplate}
+              showAllFields={showAllFields}
+              setShowAllFields={setShowAllFields}
+              loadingFields={loadingFields}
+              fetchTableFields={fetchTableFields}
+              analyzeFieldMatchingForTable={analyzeFieldMatchingForTable}
+              setShowSaveTemplateModal={setShowSaveTemplateModal}
+              historyTemplates={historyTemplates}
+              handleDeleteTemplate={handleDeleteTemplate}
+              applySheetMappingFromTemplate={applySheetMappingFromTemplate}
+              developerMode={developerMode}
+            />
+          </div>
+        </aside>
+          }
+        />
       </div>
 
       {/* 模版保存弹窗 */}

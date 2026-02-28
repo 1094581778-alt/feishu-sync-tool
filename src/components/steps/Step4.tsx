@@ -158,7 +158,7 @@ export function Step4({
             <div className="flex items-center gap-2">
               <AlertCircle className="h-5 w-5 text-red-600" />
               <p className="text-sm font-medium text-red-900 dark:text-red-100">
-                {error}
+                {typeof error === 'string' ? error : (error?.message || JSON.stringify(error) || '发生未知错误')}
               </p>
             </div>
           </div>

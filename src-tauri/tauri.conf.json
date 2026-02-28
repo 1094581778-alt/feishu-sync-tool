@@ -27,7 +27,7 @@
       }
     ],
     "security": {
-      "csp": "default-src * 'unsafe-inline' 'unsafe-eval';"
+      "csp": "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://*.feishu.cn https://open.feishu.cn"
     }
   },
   "bundle": {
@@ -53,10 +53,7 @@
         "name": "Excel文件",
         "role": "Editor"
       }
-    ],
-    "resources": {
-      "server/*": "./"
-    }
+    ]
   },
   "plugins": {
     "updater": {

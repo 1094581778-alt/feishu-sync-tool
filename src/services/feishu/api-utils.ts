@@ -38,6 +38,7 @@ export function validateRequiredParams(
 
 /**
  * 从请求体中提取飞书应用配置
+ * 注意：不再从环境变量获取配置，用户必须在界面中配置
  */
 export function extractAppConfig(body: any): AppConfig | null {
   const { appId, appSecret } = body;
@@ -46,16 +47,6 @@ export function extractAppConfig(body: any): AppConfig | null {
     return { appId, appSecret };
   }
   
-  // 备用：从环境变量获取 (兼容 Vercel)
-  const envAppId = process.env.FEISHU_APP_ID || process.env.NEXT_PUBLIC_FEISHU_APP_ID;
-  const envAppSecret = process.env.FEISHU_APP_SECRET || process.env.NEXT_PUBLIC_FEISHU_APP_SECRET;
-  
-  if (envAppId && envAppSecret) {
-    console.log('[API] 使用环境变量中的飞书凭证');
-    return { appId: envAppId, appSecret: envAppSecret };
-  }
-  
-  console.log('[API] 未找到飞书凭证，请求体:', JSON.stringify(body));
   return null;
 }
 
