@@ -60,10 +60,12 @@ class FileScannerWrapper {
   }
 
   sortFiles(files: FileInfo[], sortBy: string, sortOrder: string): FileInfo[] {
+    const typedSortBy = sortBy as 'name' | 'createdAt' | 'size';
+    const typedSortOrder = sortOrder as 'asc' | 'desc';
     if (isTauri()) {
-      return this.tauriScanner?.sortFiles(files, sortBy as 'name' | 'createdAt' | 'size', sortOrder as 'asc' | 'desc') || BrowserFileScanner.sortFiles(files, sortBy, sortOrder);
+      return this.tauriScanner?.sortFiles(files, typedSortBy, typedSortOrder) || BrowserFileScanner.sortFiles(files, typedSortBy, typedSortOrder);
     }
-    return BrowserFileScanner.sortFiles(files, sortBy, sortOrder);
+    return BrowserFileScanner.sortFiles(files, typedSortBy, typedSortOrder);
   }
 }
 
