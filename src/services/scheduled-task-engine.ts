@@ -3,7 +3,7 @@
  * 负责调度和执行定时任务
  */
 
-import parseExpression, { type ParsedExpression } from 'cron-parser';
+import CronExpressionParser from 'cron-parser';
 import type { ScheduledTaskConfig, ScheduledTaskExecutionLog, TaskStatus, FileInfo } from '@/types/scheduled-task';
 import { FileScanner } from './file-scanner-index';
 import { isTauri } from './tauri';
@@ -48,7 +48,7 @@ class ScheduledTaskEngine {
   calculateNextRun(task: ScheduledTaskConfig): Date | null {
     try {
       if (task.triggerMode === 'cron' && task.cronExpression) {
-        const interval = parseExpression(task.cronExpression, {
+        const interval = CronExpressionParser.parse(task.cronExpression, {
           currentDate: new Date(),
         });
         return interval.next().toDate();
@@ -100,7 +100,7 @@ class ScheduledTaskEngine {
    */
   validateCronExpression(cronExpression: string): { valid: boolean; error?: string } {
     try {
-      parseExpression(cronExpression);
+      CronExpressionParser.parse(cronExpression);
       return { valid: true };
     } catch (error) {
       return {
